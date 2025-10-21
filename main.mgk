@@ -1,0 +1,12 @@
+let str x = "hello" ; 128 bytes
+let int pos = 1234 ; double word
+let bool n = false ; byte
+let int color = 0
+print(pos,color,x) ; 25*80 text mode
+let str g = input
+if (x|y)|(x==y)|(x>y)&(1==1)
+{
+something
+}
++
+while ;same as if
