@@ -1,12 +1,11 @@
+%assign listSizeOffset 8
 ; load ref's address
 %macro lea 2
-    %xdefine %%name ref(%2)    
-    %defstr %%ptr %%name
-    %substr %%ptr %%ptr 1
-    %if %%ptr = "["
-        mov %1,%%name
+    
+    %if isPtr(%2)
+        mov %1,ref(%2),1
     %else
-        lea %1,[%%name]
+        lea %1,[ref(%2)]
     %endif
 %endmacro
 
@@ -27,28 +26,23 @@
     setFloat %1,0
 %endmacro
 
-
-
 ; newg(name-1,size-2,times-3)
 %macro newg 2-3
-    %assign %%isPtr 0
     section .bss
     %if %0 = 2
         __global_label_%1 resb %2
     %else
-        %assign %%isPtr 1
         __global_label_%1 resb listSizeOffset
         resb %3*%2
         section .text
-        mov qword [%3],%2*%1
+        mov [__global_label_%1],%eval(%2*%3),8,8
     %endif
-    desc %1,%2,__global_label_%1,%%isPtr
+    desc %1,%2,__global_label_%1,0
     section .text
 %endmacro
 
-
 %define float(name) __float_ %+ name
-
+ 
 ; ref(name-1)
 %define ref(name) __ref_ %+ name
 
@@ -358,6 +352,26 @@
     %define __group_eip 24
     %define __group_rip 24
 
+; search for [ at start
+; isMemory(token)
+%macro isMemory 1
+    findInToken %1,[
+    %if __0 == 0
+        retm 1
+    %else
+        retm 0
+    %endif
+%endmacro
+
+; isReg(token)
+%macro isReg 1
+    %ifnum group(%1)
+        retm 1
+    %else
+        retm 0
+    %endif
+%endmacro
+
 ; movs(dest,src,ds,ss)
 %macro movs 4
     %if %3 = 16 || %4 = 16
@@ -391,16 +405,6 @@
         mov %1, reg(%3, %%gid)
     %endif
 %endmacro
-; search for [
-; isMemory(token)
-%macro isMemory 1
-    findInToken %1,[
-    %if __0 == 0
-        retm 1
-    %else
-        retm 0
-    %endif
-%endmacro
 
 ; automov(dest,src,?ds,?ss)
 %macro automov 2-4
@@ -410,7 +414,17 @@
         %define %%ss %4
     %else
         %define %%ds size(%1)
+        %ifnum %%ds
+        %else
+            %define %%ds 0
+        %endif
+
         %define %%ss size(%2)
+        %ifnum %%ss
+        %else
+            %define %%ss 0
+        %endif
+
     %endif
 
     isMemory %1
@@ -434,7 +448,7 @@
         %if %0 == 4
             movs %1,%2,%%ds,%%ss
         %else
-            %define %%size (%%isM1=1? %%ss : %%ds) 
+            %define %%size %eval(%%isM1==1 ? %%ss : %%ds)
             movs %1,%2,%%size,%%size
         %endif
     %else
@@ -443,19 +457,19 @@
         %endif
 
         %if %%isPtr1=1||%%isPtr2=2
-            borrowReg
-            lea bReg,(%%isPtr1=1 ? %1 : %2)
+            resrp
+            lea r,(%%isPtr1=1 ? %1 : %2)
 
             %if %%isPtr1 == 1
-                %define %%d [bReg]
+                %define %%d [r]
                 %define %%s %2
             %else
                 %define %%d %1
-                %define %%s [bReg]
+                %define %%s [r]
             %endif
         
             movs %%d ,%%s ,%%ds,%%ss
-            pop bReg
+            pop r
         %elif %%isPtr1 = 0 || %%isPtr2 = 0
             %if %%isPtr1 == 0
                 %define %%d [ref(%1)]
@@ -464,7 +478,6 @@
                 %define %%d %1
                 %define %%s [ref(%2)]
             %endif
-
             movs %%d,%%s,%%ds,%%ss
         %else
             movs %1,%2,%%ds,%%ss
@@ -472,63 +485,60 @@
     %endif
 %endmacro
 
-
-; isReg(token)
-%macro isReg 1
-    %ifnum group(%1)
-        retm 1
-    %else
-        retm 0
-    %endif
-%endmacro
-
-; mov(dest,src,?ds,?ss)R
+; mov(dest,src,?ds,?ss)
 %macro mov 2-4
+
+    %if %0=3
+        mov %1,%2
+        %exitmacro
+    %endif
+    %ifidn %1,%2
+        %exitmacro
+    %endif
 
 
     TokenToNum %2
     %ifnum __0
-        
         setFloat %1,__1
         %assign %%const __0
         isReg %1
         %xdefine %%isReg1 __0
-
         isNumInSize %%const,4
+        
         %if __0==1 || %%isReg1==1
-            automov %1,%%const
+            %if %0 == 2
+                automov %1,%%const
+            %else
+                automov %1,%%const,%3,%4
+            %endif
         %else
-            borrowReg %1
-            mov bReg,%%const
-            automov %1,bReg
-            pop bReg
+            resr %1
+            mov r,%%const
+            automov %1,r
         %endif
     %else
-
         %ifnum group(%1)
-             %if %0 == 4
+            %if %0 == 4
                   automov %1, %2, %3, %4
-             %else
+            %else
                   automov %1, %2
-             %endif
+            %endif
         %else
-             %ifnum group(%2)
+            %ifnum group(%2)
                   %if %0 == 4
                        automov %1, %2, %3, %4
                   %else
                        automov %1, %2
                   %endif
-             %else
-                  ; Ref to Ref (Mem-to-Mem)
-                  push r15
-                  %if %0 == 4
-                       automov r15, %2, 8, %4
-                       automov %1, r15, %3, 8
-                  %else
-                       automov r15, %2
-                       automov %1, r15
-                  %endif
-                  pop r15
+            %else
+                resr %1
+                %if %0 == 4
+                        automov r, %2, 8, %4
+                        automov %1, r, %3, 8
+                    %else
+                        automov r, %2
+                        automov %1, r
+                %endif
              %endif
         %endif
     %endif

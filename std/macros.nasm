@@ -1,10 +1,10 @@
-;defines a breg that isnt used
-;borrowReg(?size-1,used-regs-1-*)
-%macro borrowReg 0-*
-
+;defines a reg that isnt used as r
+;resr(?size-1,used-regs-1-*)
+%macro resr 0-*
     %assign %%group 0
     %define %%foundReg 0
     %define %%sizeUsed 0
+    
     %ifnum %1
         %define %%size %1
         %define %%sizeUsed 1
@@ -25,13 +25,18 @@
         %endrep
 
         %if %%foundReg == 1
-           %define bReg reg(%%size,%%group)
+           %define r reg(%%size,%%group)
            %exitrep
         %endif
         %assign %%group %%group+1
     %endrep
-    
-    push bReg
+%endmacro
+
+;defines a reg that isnt used as r and pushes it
+;resrp(?size-1,used-regs-1-*)
+%macro resrp 0-*
+    resr %{1:-1}
+    push r
 %endmacro
 
 ; returns values from a macro to __0 ... __N

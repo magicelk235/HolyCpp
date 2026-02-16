@@ -1,13 +1,13 @@
 
 
-; reserve 
+; reserve place in the stack
 ; ress(varSize, varName, ref?) 
 %macro ress 1-3
     %assign %%qwordSize %1 / 8
+    
     %if %1 % 8 != 0
         %assign %%qwordSize %%qwordSize + 1
     %endif
-    
     
     sub rsp,%eval(%%qwordSize*8)
     
@@ -24,9 +24,9 @@
     %if %0 = 2
         ress %2,%1,0
     %else
-        ress %2*%3,0
-        ress listSizeOffset,%1,1
-        mov qword [%3],%2
+        ress %2*%3
+        ress listSizeOffset,%1,0
+        mov %1,%2*%3,8,8
     %endif
 %endmacro
 
@@ -79,7 +79,7 @@
     %rep %0
         %if size(%1) == 8
             %ifnum group(%1)
-                pop qword %1
+                pop %1
             %else
                 pop qword [ref(%1)]
             %endif
@@ -105,8 +105,8 @@
 %define blackboxOffset %eval(-8*14 -16*8)
 
 ; defines a new proc
-; proc(name,outCount)
-%macro proc 2
+; proc(name,?outCount)
+%macro proc 1-2
     %push
     %define %$procName %1
     global %$procName
@@ -117,11 +117,15 @@
     %assign %$locals 0
     %assign %$args 0
     %define %$out %[%$procName] %+ out
-    %assign %[%$out] %2*8
+    %if %0 == 2
+        %assign %$out %2*8
+    %else
+        %assign %$out 0
+    %endif
 %endmacro
 
 ; defines the end of a proc
-; endp()
+; endp
 %macro endp 0
     %$exit:
     add rsp, %$locals
