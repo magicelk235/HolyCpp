@@ -5,8 +5,11 @@
     %define %%foundReg 0
     %define %%sizeUsed 0
     
-    %ifnum %1
-        %define %%size %1
+
+    findInToken %1,s:
+    %if __0 != -1
+        subToken %1,__0+2,-1
+        %define %%size __0
         %define %%sizeUsed 1
     %else
         %define %%size 8
@@ -85,8 +88,13 @@
     %assign %%start %2+1
 
     %substr %%str %%str %%start,%%stop
-    %deftok %%str %%str
-    retm %%str
+    %strlen %%len %%str
+    %if %%len>0
+        %deftok %%str %%str
+        retm %%str
+    %else
+        retm 0
+    %endif
 %endmacro
 
 ; checks if a token is a float number
