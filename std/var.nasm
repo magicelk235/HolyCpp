@@ -1,20 +1,23 @@
 %assign listSizeOffset 8
 ; load ref's address
 %macro lea 2
-    
-    %if isPtr(%2)
-        mov %1,ref(%2),1
+    %ifnum isPtr(%2)
+        %if isPtr(%2)
+            mov %1,ref(%2)
+        %else
+            lea %1,[ref(%2)]
+        %endif
     %else
-        lea %1,[ref(%2)]
+        lea %1,%2
     %endif
 %endmacro
 
 ; setFloat(name-1,value-2)
-%macro setFloat 2
-    
+%macro setFloat 2 
     %ifnum group(%1)
     %else
-        %xdefine __float_%1 %2
+        splitIndex %1
+        %xdefine __float_%+%[__0] %2
     %endif
 %endmacro
 
@@ -35,6 +38,7 @@
         __global_label_%1 resb listSizeOffset
         resb %3*%2
         section .text
+        
         mov [__global_label_%1],%eval(%2*%3),8,8
     %endif
     desc %1,%2,__global_label_%1,0
@@ -58,25 +62,25 @@
 ; size(reg/ref) -> sizeInBytes
 %define size(x) __size_%+ x
     %define __size_bl 1
-    %define __size_bh 2
+    %define __size_bh 1
     %define __size_bx 2
     %define __size_ebx 4
     %define __size_rbx 8
 
     %define __size_al 1
-    %define __size_ah 2
+    %define __size_ah 1
     %define __size_ax 2
     %define __size_eax 4
     %define __size_rax 8
 
     %define __size_cl 1
-    %define __size_ch 2
+    %define __size_ch 1
     %define __size_cx 2
     %define __size_ecx 4
     %define __size_rcx 8
 
     %define __size_dl 1
-    %define __size_dh 2
+    %define __size_dh 1
     %define __size_dx 2
     %define __size_edx 4
     %define __size_rdx 8
@@ -146,14 +150,6 @@
     %define __size_xmm5 16
     %define __size_xmm6 16
     %define __size_xmm7 16
-    %define __size_xmm8 16
-    %define __size_xmm9 16
-    %define __size_xmm10 16
-    %define __size_xmm11 16
-    %define __size_xmm12 16
-    %define __size_xmm13 16
-    %define __size_xmm14 16
-    %define __size_xmm15 16
 
 ; reg(sizeInBytes,regGroup) -> reg
 %define reg(sz,grp) __ %+ sz %+ _ %+ grp
@@ -353,8 +349,8 @@
     %define __group_rip 24
 
 ; search for [ at start
-; isMemory(token)
-%macro isMemory 1
+; isDirectMemory(token)
+%macro isDirectMemory 1
     findInToken %1,[
     %if __0 == 0
         retm 1
@@ -372,8 +368,10 @@
     %endif
 %endmacro
 
-; movs(dest,src,ds,ss)
-%macro movs 4
+; moves that works with any given size to any given size
+; movSize(dest,src,ds,ss)
+%macro movSize 4
+
     %if %3 = 16 || %4 = 16
         %if %3 = 16 && %4 = 16
             movdqu %1, %2
@@ -406,140 +404,160 @@
     %endif
 %endmacro
 
-; automov(dest,src,?ds,?ss)
-%macro automov 2-4
-    
-    %if %0 == 4
-        %define %%ds %3
-        %define %%ss %4
+%macro sizeByToken 1
+    ; register
+    %ifnum group(%1)
+        retm size(%1)
+    ; ref
     %else
-        %define %%ds size(%1)
-        %ifnum %%ds
-        %else
-            %define %%ds 0
-        %endif
-
-        %define %%ss size(%2)
-        %ifnum %%ss
-        %else
-            %define %%ss 0
-        %endif
-
-    %endif
-
-    isMemory %1
-    %xdefine %%isM1 __0
-    isMemory %2
-    %xdefine %%isM2 __0
-
-    %ifnum isPtr(%1)
-        %define %%isPtr1 isPtr(%1)
-    %else
-        %define %%isPtr1 -1
-    %endif
-
-    %ifnum isPtr(%2)
-        %define %%isPtr2 isPtr(%2)
-    %else
-        %define %%isPtr2 -1
-    %endif
-
-    %if %%isM1=1 || %%isM2=1
-        %if %0 == 4
-            movs %1,%2,%%ds,%%ss
-        %else
-            %define %%size %eval(%%isM1==1 ? %%ss : %%ds)
-            movs %1,%2,%%size,%%size
-        %endif
-    %else
-        %ifnum %2
-            %define %%ss %%ds
-        %endif
-
-        %if %%isPtr1=1||%%isPtr2=2
-            resrp
-            lea r,(%%isPtr1=1 ? %1 : %2)
-
-            %if %%isPtr1 == 1
-                %define %%d [r]
-                %define %%s %2
-            %else
-                %define %%d %1
-                %define %%s [r]
-            %endif
-        
-            movs %%d ,%%s ,%%ds,%%ss
-            pop r
-        %elif %%isPtr1 = 0 || %%isPtr2 = 0
-            %if %%isPtr1 == 0
-                %define %%d [ref(%1)]
-                %define %%s %2
-            %else
-                %define %%d %1
-                %define %%s [ref(%2)]
-            %endif
-            movs %%d,%%s,%%ds,%%ss
-        %else
-            movs %1,%2,%%ds,%%ss
-        %endif
+        splitIndex %1
+        retm size( __0 )
     %endif
 %endmacro
+
+;lsd
+%macro lsd 2
+    ; const number check
+    TokenToNum %1
+    %ifnum __0
+        %assign %%const __0
+        setFloat %2,__1
+        isReg %2
+        %xdefine %%isReg __0
+
+        isNumInSize %%const,4
+        %if __0!=1 && %%isReg!=1
+            resr %2
+            mov r,%%const
+
+            sizeByToken %2
+            retm r,__0
+            %exitmacro
+
+        %endif
+
+        sizeByToken %2
+        retm %%const,__0
+        %exitmacro
+        
+    %endif
+
+    ; register check
+    %ifnum group(%1)
+        retm %1,size(%1)
+        %exitmacro
+    %endif
+
+    ; checks for direct ref
+
+    ; is ref ptr
+    %ifidn isPtr(%1),1
+        resr %2
+        lea r,%1
+        retm r,size(%1)
+        %exitmacro
+    %endif
+
+    ; is ref !ptr
+    %ifidn isPtr(%1),0
+        retm [ref(%1)],size(%1)
+        %exitmacro
+    %endif
+
+    ; checks for memmory
+    isDirectMemory %1
+    %if __0
+        retm %1,size(%2)
+        %exitmacro
+    %endif
+    retm -1,-1
+%endmacro
+
+; lxd(token1,token2)
+%macro lxd 2
+
+    lsd %1,%2
+    %ifidn __1,-1
+    %else
+        retm __0,__1
+        %exitmacro
+    %endif
+
+    ; checks for lists
+    isTokenList %1
+    %if __0
+        getIndexOffset %1,%2
+        %exitmacro
+    %endif
+%endmacro
+
+%macro isMemmory 1
+    isDirectMemory %1
+    %if __0
+        retm 1
+        %exitmacro
+    %endif
+
+    %ifnum isPtr(%1)
+        retm 1
+        %exitmacro
+    %endif
+
+    retm 0
+%endmacro
+
+
+; automov(dest,src,?ds,?ss)
+%macro automov 2-4
+    %xdefine %%0 %0
+    lxd %1,%2
+    %xdefine %%dest __0
+
+    %if %%0 == 4
+        %xdefine %%ds %3
+    %else
+        %xdefine %%ds __1
+    %endif
+
+    lxd %2,%1
+    %xdefine %%src __0
+
+    %if %%0 == 4
+        %xdefine %%ss %4
+    %else
+        %xdefine %%ss __1
+    %endif
+
+
+
+    movSize %%dest,%%src,%%ds,%%ss
+%endmacro
+
+
 
 ; mov(dest,src,?ds,?ss)
 %macro mov 2-4
 
-    %if %0=3
-        mov %1,%2
-        %exitmacro
-    %endif
+
     %ifidn %1,%2
         %exitmacro
     %endif
 
 
-    TokenToNum %2
-    %ifnum __0
-        setFloat %1,__1
-        %assign %%const __0
-        isReg %1
-        %xdefine %%isReg1 __0
-        isNumInSize %%const,4
-        
-        %if __0==1 || %%isReg1==1
-            %if %0 == 2
-                automov %1,%%const
-            %else
-                automov %1,%%const,%3,%4
-            %endif
+    isMemmory %1
+    %xdefine %%is1Memmory __0
+    isMemmory %2
+    %xdefine %%is2Memmory __0
+
+    %if %%is1Memmory && %%is2Memmory
+        %if %0==2
+            automov r15,%1
+            automov %2,r15
         %else
-            resr %1
-            mov r,%%const
-            automov %1,r
+            automov r15,%1
+            automov %2,r15,%3,%4
         %endif
     %else
-        %ifnum group(%1)
-            %if %0 == 4
-                  automov %1, %2, %3, %4
-            %else
-                  automov %1, %2
-            %endif
-        %else
-            %ifnum group(%2)
-                  %if %0 == 4
-                       automov %1, %2, %3, %4
-                  %else
-                       automov %1, %2
-                  %endif
-            %else
-                resr %1
-                %if %0 == 4
-                        automov r, %2, 8, %4
-                        automov %1, r, %3, 8
-                    %else
-                        automov r, %2
-                        automov %1, r
-                %endif
-             %endif
-        %endif
+        automov %{1:-1}
     %endif
 %endmacro

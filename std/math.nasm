@@ -11,23 +11,23 @@
         mov %3,xmm0
     %elif size(%3) == 1
         mov al,%1
-        mov ah,%2            
-        add al,ah
+        lxd %2,al
+        add al,__0
         mov %3,al
     %elif size(%3) == 2
         mov ax,%1
-        mov bx,%2
-        add ax,bx
+        lxd %2,ax
+        add ax,__0
         mov %3,ax
     %elif size(%3)==4
         mov eax,%1
-        mov ebx,%2
-        add eax,ebx
+        lxd %2,eax
+        add eax,__0
         mov %3,eax
     %else
         mov rax,%1
-        mov rbx,%2
-        add rax,rbx
+        lxd %2,rax
+        add rax,__0
         mov %3,rax
     %endif
 %endmacro
@@ -40,27 +40,27 @@
     %ifidn float(%1),1
         mov xmm0,%1
         mov xmm1,%2
-        subd xmm0,xmm1
+        subsd xmm0,xmm1
         mov %3,xmm0
     %elif size(%3) == 1
         mov al,%1
-        mov ah,%2            
-        sub al,ah
+        lxd %2,al
+        sub al,__0
         mov %3,al
     %elif size(%3) == 2
         mov ax,%1
-        mov bx,%2
-        add ax,bx
+        lxd %2,ax
+        add ax,__0
         mov %3,ax
     %elif size(%3)==4
         mov eax,%1
-        mov ebx,%2
-        sub eax,ebx
+        lxd %2,eax
+        sub eax,__0
         mov %3,eax
     %else
         mov rax,%1
-        mov rbx,%2
-        sub rax,rbx
+        lxd %2,rax
+        sub rax,__0
         mov %3,rax
     %endif
 %endmacro
@@ -72,25 +72,25 @@
         mov xmm1,%2
         mulsd xmm0,xmm1
         mov %3,xmm0
-    %elif size(%1) == 1
+    %elif size(%3) == 1
         mov al,%1
-        mov dl,%2
-        imul dl
+        lxd %2,al
+        imul byte __0
         mov %3,al
-    %elif size(%1) == 2
+    %elif size(%3) == 2
         mov ax,%1
-        mov dx,%2
-        imul ax,dx
+        lxd %2,ax
+        imul ax,__0
         mov %3,ax
-    %elif size(%1) == 4
+    %elif size(%3) == 4
         mov eax,%1
-        mov edx,%2
-        imul eax,edx
+        lxd %2,eax
+        imul eax,__0
         mov %3,eax
     %else
         mov rax,%1
-        mov rdx,%2
-        imul rax,rdx
+        lxd %2,rax
+        imul rax,__0
         mov %3,rax
     %endif
 %endmacro
@@ -105,26 +105,26 @@
     %if size(%3) == 1
         mov al,%1
         cbw 
-        mov bl,%2
-        idiv bl
+        lxd %2,al
+        idiv byte __0
         mov %3,al
     %elif size(%3) == 2
         mov ax,%1
         cwd
-        mov bx,%2
-        idiv bx
+        lxd %2,ax
+        idiv word __0
         mov %3,ax
     %elif size(%3)==4
         mov eax,%1
         cdq
-        mov ebx,%2
-        idiv ebx
+        lxd %2,eax
+        idiv dword __0
         mov %3,eax
     %else
         mov rax,%1
         cqo
-        mov rbx,%2
-        idiv rbx
+        lxd %2,rax
+        idiv qword __0
         mov %3,rax
     %endif
 %endmacro
@@ -133,9 +133,9 @@
 %macro mod 3
     %if size(%3) == 1
         mov al,%1
-        cbw
-        mov bl,%2
-        idiv bl
+        cbw 
+        lxd %2,al
+        idiv byte __0
             
         cmp ah,0
         jge %%byteIsPos
@@ -145,8 +145,8 @@
     %elif size(%3) == 2
         mov ax,%1
         cwd
-        mov bx,%2
-        idiv bx
+        lxd %2,ax
+        idiv word __0
     
         cmp dx,0
         jge %%wordIsPos
@@ -156,8 +156,8 @@
     %elif size(%3)==4
         mov eax,%1
         cdq
-        mov ebx,%2
-        idiv ebx
+        lxd %2,eax
+        idiv dword __0
             
         cmp edx,0
         jge %%bwordIsPos
@@ -167,8 +167,8 @@
     %else
         mov rax,%1
         cqo
-        mov rbx,%2
-        idiv rbx
+        lxd %2,rax
+        idiv qword __0
             
         cmp rdx,0
         jge %%qwordIsPos
