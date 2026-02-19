@@ -1,11 +1,13 @@
 %assign listSizeOffset 8
 ; load ref's address
 %macro lea 2
-    %ifnum isPtr(%2)
-        %if isPtr(%2)
-            mov %1,ref(%2)
+    %ifnum isPtr(%1)
+        %if isPtr(%1)
+            resr %2
+            mov r,ref(%1)
+            retm r
         %else
-            lea %1,[ref(%2)]
+            retm ref(%1)
         %endif
     %else
         lea %1,%2
@@ -415,6 +417,18 @@
     %endif
 %endmacro
 
+%macro isDirectRef 1
+    %ifidn isPtr(%1),1
+        retm 1
+    %else
+        %ifidn isPtr(%1),0
+            retm 1
+        %else
+            retm 0
+        %endif
+    %endif
+%endmacro
+
 ;lsd
 %macro lsd 2
     ; const number check
@@ -449,18 +463,10 @@
     %endif
 
     ; checks for direct ref
-
-    ; is ref ptr
-    %ifidn isPtr(%1),1
-        resr %2
-        lea r,%1
-        retm r,size(%1)
-        %exitmacro
-    %endif
-
-    ; is ref !ptr
-    %ifidn isPtr(%1),0
-        retm [ref(%1)],size(%1)
+    isDirectRef %1
+    %if __0
+        lea %1,%2
+        retm [__0],size(%1)
         %exitmacro
     %endif
 
