@@ -44,3 +44,15 @@
     findInToken %1,[
     retm %eval(__0!=0)
 %endmacro
+
+; dest,ref
+%macro blen 2
+    lea %2,%1
+    mov %1,[__0]
+%endmacro
+
+; dest,ref
+%macro len 2
+    blen %1,%2
+    div %1,size(%2),%1
+%endmacro

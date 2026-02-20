@@ -56,8 +56,6 @@
 
 ; findInToken(token1,token2)->index
 %macro findInToken 2
-
-
     %defstr %%str1 %1
     %defstr %%str2 %2
 
@@ -81,6 +79,8 @@
     %defstr %%str %1
     %if %0=2
         %assign %%stop -1
+    %elif %3>0
+        %assign %%stop %3-%2
     %else
         %assign %%stop %3
     %endif
@@ -92,6 +92,14 @@
     %if %%len>0
         %deftok %%str %%str
         retm %%str
+    %else
+        retm **empty**
+    %endif
+%endmacro
+
+%macro isTokenEmpty 1
+    %ifidn %1,**empty**
+        retm 1
     %else
         retm 0
     %endif
@@ -139,6 +147,12 @@
     %endif    
 %endmacro
 
+%macro tokenLen 1
+    %defstr %%str %1
+    %strlen %%len %%str
+    retm %%len
+%endmacro
+
 ; converts a token to a number and return the type(0=int,1=float)
 ;TokenToNum(token)
 %macro TokenToNum 1
@@ -156,4 +170,50 @@
     %assign %%sizeInBits %2*8 -2
     %assign %%max (2<<%%sizeInBits)-1
     retm %eval((-%%max <= %1 && %1 <= %%max ? 1 : 0))
+%endmacro
+
+;replaceToken(original,old,new,times?)
+%macro replaceToken 3-4
+    %if %0==4
+        %xdefine %%replaceTimes %4
+    %else
+        %define %%replaceTimes 10000
+    %endif
+
+    tokenLen %2
+    %assign %%skip __0
+
+    %xdefine %%newToken %1
+    %rep %%replaceTimes
+    findInToken %%newToken,%2
+    %if __0 == -1
+        %exitrep
+    %endif   
+
+    %assign %%index __0
+    subToken %%newToken,0,%%index
+    %xdefine %%leftPart __0
+    
+
+    subToken %%newToken,%eval(%%index+%%skip),-1
+    %xdefine %%rightPart __0
+
+
+
+    isTokenEmpty %%rightPart
+    %if __0
+        %xdefine %%newToken %%leftPart%+%3
+    %else
+        isTokenEmpty %%leftPart
+        %if __0
+            %xdefine %%newToken %3%+%%rightPart
+        %else
+            %xdefine %%newToken %%leftPart%+%3%+%%rightPart
+        %endif
+    %endif
+    
+    
+
+    %endrep
+    retm %%newToken
 %endmacro

@@ -18,9 +18,9 @@
     %endif
 %endmacro
 
-; new temp var in a proc
-; news(name,size,times)
-%macro news 2-3
+; new local var in a proc
+; newl(name,size,times)
+%macro newl 2-3
     %if %0 = 2
         ress %2,%1,0
     %else
@@ -104,6 +104,8 @@
 
 %define blackboxOffset %eval(-8*14 -16*8)
 
+%define inProc 0
+
 ; defines a new proc
 ; proc(name,?outCount)
 %macro proc 1-2
@@ -122,6 +124,21 @@
     %else
         %assign %$out 0
     %endif
+    %define inProc 1
+%endmacro
+
+%assign tempOffset 0
+; newt(name,size)
+%macro newt 2
+    %assign tempOffset tempOffset+%2
+    desc %1,%2,rbp+tempOffset,0
+%endmacro
+
+%macro resetTemp 0
+    %if inProc
+        %assign tempOffset blackboxOffset+%$locals
+    %else
+        %assign tempOffset 0
 %endmacro
 
 ; defines the end of a proc
@@ -133,6 +150,7 @@
     pop rbp
     ret %eval(%$args-%$out)
     %pop
+    %define inProc 0
 %endmacro
 
 ; smart call, automatically handles pushing args and poping outs
