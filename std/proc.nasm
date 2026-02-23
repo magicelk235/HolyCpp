@@ -131,14 +131,11 @@
 ; newt(name,size)
 %macro newt 2
     %assign tempOffset tempOffset+%2
-    desc %1,%2,rbp+tempOffset,0
+    desc %1,%2,rsp+tempOffset,0
 %endmacro
 
 %macro resetTemp 0
-    %if inProc
-        %assign tempOffset blackboxOffset+%$locals
-    %else
-        %assign tempOffset 0
+    %assign tempOffset 0
 %endmacro
 
 ; defines the end of a proc

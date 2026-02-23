@@ -63,8 +63,13 @@
     %strlen %%lenStr2 %%str2
     %define %%sub ''
     %assign %%i 1
+    %assign %%loopTimes (%%lenStr1-%%lenStr2)+1
     retm -1
-    %rep %%lenStr1-%%lenStr2+1
+    %if %%loopTimes<=0
+        %exitmacro
+    %endif
+
+    %rep %%loopTimes
         %substr %%sub %%str1 %%i,%%lenStr2
         %ifidni %%sub,%%str2
             retm %eval(%%i-1)
@@ -93,17 +98,12 @@
         %deftok %%str %%str
         retm %%str
     %else
-        retm **empty**
+        retm emptyToken
     %endif
 %endmacro
 
-%macro isTokenEmpty 1
-    %ifidn %1,**empty**
-        retm 1
-    %else
-        retm 0
-    %endif
-%endmacro
+%define emptyToken @@EMPTY@@
+
 
 ; checks if a token is a float number
 %macro isTokenFloat 1
@@ -181,7 +181,7 @@
     %endif
 
     tokenLen %2
-    %assign %%skip __0
+    %assign %%size __0
 
     %xdefine %%newToken %1
     %rep %%replaceTimes
@@ -195,21 +195,22 @@
     %xdefine %%leftPart __0
     
 
-    subToken %%newToken,%eval(%%index+%%skip),-1
+    subToken %%newToken,%eval(%%index+%%size),-1
     %xdefine %%rightPart __0
 
 
 
-    isTokenEmpty %%rightPart
-    %if __0
-        %xdefine %%newToken %%leftPart%+%3
-    %else
-        isTokenEmpty %%leftPart
-        %if __0
-            %xdefine %%newToken %3%+%%rightPart
+    
+    %ifidn %%rightPart,emptyToken
+        %ifidn %%leftPart,emptyToken
+            %xdefine %%newToken %3
         %else
-            %xdefine %%newToken %%leftPart%+%3%+%%rightPart
+            %xdefine %%newToken %%leftPart%+%3
         %endif
+    %elifidn %%leftPart,emptyToken
+        %xdefine %%newToken %3%+%%rightPart
+    %else
+        %xdefine %%newToken %%leftPart%+%3%+%%rightPart
     %endif
     
     

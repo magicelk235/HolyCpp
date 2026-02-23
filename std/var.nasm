@@ -420,12 +420,10 @@
 %macro isDirectRef 1
     %ifidn isPtr(%1),1
         retm 1
+    %elifidn isPtr(%1),0
+        retm 1
     %else
-        %ifidn isPtr(%1),0
-            retm 1
-        %else
-            retm 0
-        %endif
+        retm 0
     %endif
 %endmacro
 
@@ -534,8 +532,6 @@
         %xdefine %%ss __1
     %endif
 
-
-
     movSize %%dest,%%src,%%ds,%%ss
 %endmacro
 
@@ -544,11 +540,9 @@
 ; mov(dest,src,?ds,?ss)
 %macro mov 2-4
 
-
     %ifidn %1,%2
         %exitmacro
     %endif
-
 
     isMemmory %1
     %xdefine %%is1Memmory __0
@@ -556,12 +550,11 @@
     %xdefine %%is2Memmory __0
 
     %if %%is1Memmory && %%is2Memmory
+        automov rax,%1
         %if %0==2
-            automov r15,%1
-            automov %2,r15
+            automov %2,rax
         %else
-            automov r15,%1
-            automov %2,r15,%3,%4
+            automov %2,rax,%3,%4
         %endif
     %else
         automov %{1:-1}
