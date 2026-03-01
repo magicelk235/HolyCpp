@@ -1,42 +1,48 @@
 %assign listSizeOffset 8
 ; load ref's address
+; lea(ref,skipReg)
+; eg lea(ref,rax) if ref is ptr its address will load to a register that isnt rax -> __1=rax
 %macro lea 2
-    %ifnum isPtr(%1)
-        %if isPtr(%1)
+    %if isDirectRef(%1)
+        %if ptr(%1)
             resr %2
-            mov r,ref(%1)
+            mov r,addr(%1)
             retm r
         %else
-            retm ref(%1)
+            retm addr(%1)
         %endif
     %else
         lea %1,%2
     %endif
 %endmacro
 
-; setFloat(name-1,value-2)
+; set a ref to a float
+; setFloat(name,value)
 %macro setFloat 2 
-    %ifnum group(%1)
+    %ifnum group(%1) ; ignores if reg
     %else
         splitIndex %1
-        %xdefine __float_%+%[__0] %2
+        %xdefine __float_%+%[__1] %2
     %endif
 %endmacro
 
-; desc(name-1,size-2,ref-3,isPtr-4)
+; makes a new ref that store size,addr,ptr, float
+; eg: desc(var1,8(qword),rbp-128,0) 
+; desc(ref's name,size,addr,ptr)
 %macro desc 4
-    %xdefine __size_%1 %2 ;-> __size_%$name 
-    %xdefine __ref_%1 %3; -> %$name -> ref
-    %xdefine __isPtr_%1 %4 ; -> isptr
+    %xdefine __size_%1 %2 ;-> __size_name 
+    %xdefine __addr_%1 %3; -> __addr_name
+    %xdefine __ptr_%1 %4 ; -> ptr_name
     setFloat %1,0
 %endmacro
 
+; makes a new global variable
 ; newg(name-1,size-2,times-3)
 %macro newg 2-3
     section .bss
-    %if %0 = 2
+    %if %0 = 2 ; if not array
         __global_label_%1 resb %2
-    %else
+    %else ; if array stores the size in qword,and size*time array
         __global_label_%1 resb listSizeOffset
         resb %3*%2
         section .text
@@ -47,21 +53,23 @@
     section .text
 %endmacro
 
+; gets if a ref is a float
 %define float(name) __float_ %+ name
  
-; ref(name-1)
-%define ref(name) __ref_ %+ name
+; gets the addr of ref
+%define addr(name) __addr_ %+ name
 
-%define isPtr(name) __isPtr_ %+ name
+; gets if a ref is a ptr
+%define ptr(name) __ptr_ %+ name
 
-; sizename(sizeInBytes)-> name
+; sizename(size)-> sizeInName
 %define sizename(x) __sizename_ %+x
     %define __sizename_1 byte
     %define __sizename_2 word
     %define __sizename_4 dword
     %define __sizename_8 qword
 
-; size(reg/ref) -> sizeInBytes
+; size(reg/ref) -> size
 %define size(x) __size_%+ x
     %define __size_bl 1
     %define __size_bh 1
@@ -153,7 +161,7 @@
     %define __size_xmm6 16
     %define __size_xmm7 16
 
-; reg(sizeInBytes,regGroup) -> reg
+; reg(size,regGroup) -> reg
 %define reg(sz,grp) __ %+ sz %+ _ %+ grp
 
     %define __1_0 al
@@ -354,55 +362,45 @@
 ; isDirectMemory(token)
 %macro isDirectMemory 1
     findInToken %1,[
-    %if __0 == 0
+    %if __1 == 0
         retm 1
     %else
         retm 0
     %endif
 %endmacro
 
-; isReg(token)
-%macro isReg 1
-    %ifnum group(%1)
-        retm 1
-    %else
-        retm 0
-    %endif
-%endmacro
+; checks if a token is a register
+%define isReg(token) %isnum(group(token))
+
 
 ; moves that works with any given size to any given size
 ; movSize(dest,src,ds,ss)
 %macro movSize 4
-
-    %if %3 = 16 || %4 = 16
-        %if %3 = 16 && %4 = 16
-            movdqu %1, %2
-        %elif %3 = 16
-            %if %4 = 8
-                movq %1, %2
-            %elif %4 = 4
-                movd %1, %2
-            %endif
-        %elif %4 = 16
-            %if %3 = 8
-                movq %1, %2
-            %elif %3 = 4
-                movd %1, %2
-            %endif
+    %if %3 = 16 && %4 = 16 ; checks if both dest and src are  
+        movdqu %1, %2
+    %elif %3 = 16
+        %if %4 = 8
+            movq %1, %2
+        %elif %4 = 4
+            movd %1, %2
+        %endif
+    %elif %4 = 16
+        %if %3 = 8
+            movq %1, %2
+        %elif %3 = 4
+            movd %1, %2
         %endif
     %elif %3 >= %4
         %if %3 = %4
             mov sizename(%3) %1, sizename(%3) %2
+        %elif %4 != 4
+            movsx sizename(%3) %1, sizename(%4) %2
         %else
-            %if %4 != 4
-                movsx sizename(%3) %1, sizename(%4) %2
-            %else
-                movsxd qword %1, dword %2
-            %endif
+            movsxd qword %1, dword %2
         %endif
     %else
-        %xdefine %%gid group(%2)
-        mov %1, reg(%3, %%gid)
+        %xdefine %%group group(%2)
+        mov %1, reg(%3, %%group)
     %endif
 %endmacro
 
@@ -413,83 +411,71 @@
     ; ref
     %else
         splitIndex %1
-        retm size( __0 )
+        retm size( __1 )
     %endif
 %endmacro
 
-%macro isDirectRef 1
-    %ifidn isPtr(%1),1
-        retm 1
-    %elifidn isPtr(%1),0
-        retm 1
-    %else
-        retm 0
-    %endif
-%endmacro
+%define isRef(token) %isnum(ptr(token))
+
+%define isDirectRef(token) %eval(%isidn(ptr(token),1)||%isidn(ptr(token),0))
 
 ;lsd
 %macro lsd 2
     ; const number check
     TokenToNum %1
-    %ifnum __0
-        %assign %%const __0
-        setFloat %2,__1
-        isReg %2
-        %xdefine %%isReg __0
+    %ifnum __1
+        %assign %%const __1
+        setFloat %2,__2
 
         isNumInSize %%const,4
-        %if __0!=1 && %%isReg!=1
+        %if __1!=1 && isReg(%2)!=1
             resr %2
             mov r,%%const
-
             sizeByToken %2
-            retm r,__0
+            retm r,__1
             %exitmacro
-
         %endif
 
         sizeByToken %2
-        retm %%const,__0
+        retm %%const,__1
         %exitmacro
-        
     %endif
 
     ; register check
-    %ifnum group(%1)
+    %if isReg(%1)
         retm %1,size(%1)
         %exitmacro
     %endif
 
     ; checks for direct ref
-    isDirectRef %1
-    %if __0
+    %if isDirectRef(%1)
         lea %1,%2
-        retm [__0],size(%1)
+        retm [__1],size(%1)
         %exitmacro
     %endif
 
     ; checks for memmory
     isDirectMemory %1
-    %if __0
+    %if __1
         retm %1,size(%2)
         %exitmacro
     %endif
-    retm -1,-1
+    retm emptyToken,emptyToken
 %endmacro
 
 ; lxd(token1,token2)
 %macro lxd 2
 
     lsd %1,%2
-    %ifidn __1,-1
+    %ifidn __2,emptyToken
     %else
-        retm __0,__1
+        retm __1,__2
         %exitmacro
     %endif
 
     ; checks for lists
     isTokenList %1
-    %if __0
+    %if __1
         getIndexOffset %1,%2
         %exitmacro
     %endif
@@ -497,17 +483,12 @@
 
 %macro isMemmory 1
     isDirectMemory %1
-    %if __0
+    %if __1
         retm 1
         %exitmacro
     %endif
 
-    %ifnum isPtr(%1)
-        retm 1
-        %exitmacro
-    %endif
-
-    retm 0
+    retm isRef(%1)
 %endmacro
 
 
@@ -515,40 +496,47 @@
 %macro automov 2-4
     %xdefine %%0 %0
     lxd %1,%2
-    %xdefine %%dest __0
+    %xdefine %%dest __1
 
     %if %%0 == 4
         %xdefine %%ds %3
     %else
-        %xdefine %%ds __1
+        %xdefine %%ds __2
     %endif
 
     lxd %2,%1
-    %xdefine %%src __0
+    %xdefine %%src __1
 
     %if %%0 == 4
         %xdefine %%ss %4
     %else
-        %xdefine %%ss __1
+        %xdefine %%ss __2
     %endif
-
     movSize %%dest,%%src,%%ds,%%ss
 %endmacro
 
-
+%define dest 0
+%define src 0
 
 ; mov(dest,src,?ds,?ss)
 %macro mov 2-4
 
     %ifidn %1,%2
         %exitmacro
+    %elif %isidn(dest,%1) && %isidn(src,%2)
+        %exitmacro
+    %elif %isidn(dest,%2) && %isidn(src,%1)
+        %exitmacro
     %endif
 
-    isMemmory %1
-    %xdefine %%is1Memmory __0
-    isMemmory %2
-    %xdefine %%is2Memmory __0
+    %xdefine dest %1
+    %xdefine src %2
 
+    isMemmory %1
+    %xdefine %%is1Memmory __1
+    isMemmory %2
+    %xdefine %%is2Memmory __1
+    
     %if %%is1Memmory && %%is2Memmory
         automov rax,%1
         %if %0==2

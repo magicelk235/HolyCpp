@@ -1,15 +1,15 @@
 ;defines a reg that isnt used as r
+;eg: resr(s:4,rax,rbx)->ecx
 ;resr(?size-1,used-regs-1-*)
 %macro resr 0-*
     %assign %%group 0
     %define %%foundReg 0
     %define %%sizeUsed 0
     
-
     findInToken %1,s:
-    %if __0 != -1
-        subToken %1,__0+2,-1
-        %define %%size __0
+    %if __1 != -1
+        subToken %1,__1+2,-1
+        %define %%size __1
         %define %%sizeUsed 1
     %else
         %define %%size 8
@@ -19,7 +19,7 @@
         %rotate %%sizeUsed
         %define %%foundReg 1
         %rep %0-%%sizeUsed
-            %ifnum group(%1)
+            %if isReg(%1)
                 %if group(%1) = %%group
                     %define %%foundReg 0
                 %endif
@@ -42,10 +42,13 @@
     push r
 %endmacro
 
-; returns values from a macro to __0 ... __N
+; returns values from a macro to __1 ... __N
 ; retm(outs)
 %macro retm 1-*
-    %assign %%i 0
+
+    %xdefine __0 %0
+
+    %assign %%i 1
     %rep %0
         %xdefine %%index %%i
         %xdefine __%[%%i] %1
@@ -103,20 +106,20 @@
 %endmacro
 
 %define emptyToken @@EMPTY@@
-
+%define isEmpty(token) %isidn(token,emptyToken)
 
 ; checks if a token is a float number
 %macro isTokenFloat 1
     findInToken %1 , .
-    %if __0=-1
+    %if __1=-1
         retm 0
         %exitmacro
     %endif
-    %xdefine %%dotIndex __0
+    %xdefine %%dotIndex __1
 
     ; checks if x is a number in x.y
     subToken %1,0,%%dotIndex
-    %ifnum __0
+    %ifnum __1
     %else
         retm 0
         %exitmacro
@@ -124,7 +127,7 @@
 
     ; checks if y is a number in x.y
     subToken %1,%%dotIndex+1
-    %ifnum __0
+    %ifnum __1
     %else
         retm 0
         %exitmacro
@@ -139,7 +142,7 @@
         retm 1,0
     %else
         isTokenFloat %1
-        %if  __0=1
+        %if  __1=1
             retm 1,1
         %else
             retm 0,0
@@ -157,10 +160,10 @@
 ;TokenToNum(token)
 %macro TokenToNum 1
     isTokenNum %1
-    %if __0 == 1 && __1 == 1
-        retm %eval(__float64__(%1)),__1
+    %if __1 == 1 && __2 == 1
+        retm %eval(__float64__(%1)),__2
     %else
-        retm %1,__1
+        retm %1,__2
     %endif
 %endmacro
 
@@ -181,33 +184,33 @@
     %endif
 
     tokenLen %2
-    %assign %%size __0
+    %assign %%size __1
 
     %xdefine %%newToken %1
     %rep %%replaceTimes
     findInToken %%newToken,%2
-    %if __0 == -1
+    %if __1 == -1
         %exitrep
     %endif   
 
-    %assign %%index __0
+    %assign %%index __1
     subToken %%newToken,0,%%index
-    %xdefine %%leftPart __0
+    %xdefine %%leftPart __1
     
 
     subToken %%newToken,%eval(%%index+%%size),-1
-    %xdefine %%rightPart __0
+    %xdefine %%rightPart __1
 
 
 
     
-    %ifidn %%rightPart,emptyToken
-        %ifidn %%leftPart,emptyToken
+    %if isEmpty(%%rightPart)
+        %if isEmpty(%%leftPart)
             %xdefine %%newToken %3
         %else
             %xdefine %%newToken %%leftPart%+%3
         %endif
-    %elifidn %%leftPart,emptyToken
+    %elif isEmpty(%%leftPart)
         %xdefine %%newToken %3%+%%rightPart
     %else
         %xdefine %%newToken %%leftPart%+%3%+%%rightPart
@@ -217,4 +220,53 @@
 
     %endrep
     retm %%newToken
+%endmacro
+
+; findPare(mainToken,start,stop)
+%macro findPare 3
+    findInToken %1,%2
+
+    %xdefine %%startIndex __1
+
+    retm -1,-1
+
+    %if %%startIndex == -1
+        %exitmacro
+    %endif
+
+    %assign %%count 1
+
+    %xdefine %%endIndex -1
+
+    %defstr %%mainStr %1
+    %defstr %%startStr %2
+    %defstr %%endStr %3
+    
+    %strlen %%mainLen %%mainStr
+    %strlen %%pareLen %%startStr
+
+    %define %%sub '' 
+    %assign %%i %%startIndex+2
+
+    %assign %%loopTimes (%%mainLen-%%pareLen-%%startIndex)+1
+    %if %%loopTimes<=0
+        %exitmacro
+    %endif
+
+    %rep %%loopTimes
+        %substr %%sub %%mainStr %%i,%%pareLen
+
+        %ifidni %%sub,%%endStr
+            %assign %%count %%count-1
+        %elifidni %%sub,%%startStr
+            %assign %%count %%count+1
+        %endif
+        
+        %if %%count==0
+            retm %%startIndex,%eval(%%i-1)
+            %exitrep
+        %endif
+
+        %assign %%i %%i+1
+    %endrep
 %endmacro

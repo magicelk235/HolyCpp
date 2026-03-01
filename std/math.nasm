@@ -12,22 +12,22 @@
     %elif size(%3) == 1
         mov al,%1
         lxd %2,al
-        add al,__0
+        add al,__1
         mov %3,al
     %elif size(%3) == 2
         mov ax,%1
         lxd %2,ax
-        add ax,__0
+        add ax,__1
         mov %3,ax
     %elif size(%3)==4
         mov eax,%1
         lxd %2,eax
-        add eax,__0
+        add eax,__1
         mov %3,eax
     %else
         mov rax,%1
         lxd %2,rax
-        add rax,__0
+        add rax,__1
         mov %3,rax
     %endif
 %endmacro
@@ -44,22 +44,22 @@
     %elif size(%3) == 1
         mov al,%1
         lxd %2,al
-        sub al,__0
+        sub al,__1
         mov %3,al
     %elif size(%3) == 2
         mov ax,%1
         lxd %2,ax
-        add ax,__0
+        add ax,__1
         mov %3,ax
     %elif size(%3)==4
         mov eax,%1
         lxd %2,eax
-        sub eax,__0
+        sub eax,__1
         mov %3,eax
     %else
         mov rax,%1
         lxd %2,rax
-        sub rax,__0
+        sub rax,__1
         mov %3,rax
     %endif
 %endmacro
@@ -74,22 +74,22 @@
     %elif size(%3) == 1
         mov al,%1
         lxd %2,al
-        imul byte __0
+        imul byte __1
         mov %3,al
     %elif size(%3) == 2
         mov ax,%1
         lxd %2,ax
-        imul ax,__0
+        imul ax,__1
         mov %3,ax
     %elif size(%3) == 4
         mov eax,%1
         lxd %2,eax
-        imul eax,__0
+        imul eax,__1
         mov %3,eax
     %else
         mov rax,%1
         lxd %2,rax
-        imul rax,__0
+        imul rax,__1
         mov %3,rax
     %endif
 %endmacro
@@ -105,25 +105,25 @@
         mov al,%1
         cbw 
         lxd %2,al
-        idiv byte __0
+        idiv byte __1
         mov %3,al
     %elif size(%3) == 2
         mov ax,%1
         cwd
         lxd %2,ax
-        idiv word __0
+        idiv word __1
         mov %3,ax
     %elif size(%3)==4
         mov eax,%1
         cdq
         lxd %2,eax
-        idiv dword __0
+        idiv dword __1
         mov %3,eax
     %else
         mov rax,%1
         cqo
         lxd %2,rax
-        idiv qword __0
+        idiv qword __1
         mov %3,rax
     %endif
 %endmacro
@@ -134,7 +134,7 @@
         mov al,%1
         cbw 
         lxd %2,al
-        idiv byte __0
+        idiv byte __1
             
         cmp ah,0
         jge %%byteIsPos
@@ -145,7 +145,7 @@
         mov ax,%1
         cwd
         lxd %2,ax
-        idiv word __0
+        idiv word __1
     
         cmp dx,0
         jge %%wordIsPos
@@ -156,7 +156,7 @@
         mov eax,%1
         cdq
         lxd %2,eax
-        idiv dword __0
+        idiv dword __1
             
         cmp edx,0
         jge %%bwordIsPos
@@ -167,7 +167,7 @@
         mov rax,%1
         cqo
         lxd %2,rax
-        idiv qword __0
+        idiv qword __1
             
         cmp rdx,0
         jge %%qwordIsPos
@@ -213,8 +213,8 @@
     retm 0
 %endmacro 
 
-; getOperands(token,operatorIndex,operatorSize?)-> lhs,rhs,expression
-%macro getOperands 2-3
+; get2operands(token,operatorIndex,?operatorSize)-> lhs,rhs,expression
+%macro get2operands 2-3
     %if %0==2
         %assign %%size 1
     %else
@@ -223,7 +223,7 @@
 
 
     tokenLen %1
-    %assign %%max __0
+    %assign %%max __1
     %assign %%min 0
 
     ; %assign %%start 0
@@ -233,9 +233,9 @@
     %assign %%i %2-%%size
     %rep 100000
         subToken %1,%%i,%eval(%%i+1)
-        %xdefine %%lhs __0
+        %xdefine %%lhs __1
         isOperator %%lhs
-        %if __0
+        %if __1
             %assign %%start %%i+1
             %exitrep
         %elif %%i==%%min
@@ -249,9 +249,9 @@
     %assign %%i %2+%%size+1
     %rep 100000
         subToken %1,%eval(%%i-1),%%i
-        %xdefine %%rhs __0
+        %xdefine %%rhs __1
         isOperator %%rhs
-        %if __0
+        %if __1
             %assign %%stop %%i-1
             %exitrep
         %elif %%i==%%max
@@ -264,13 +264,13 @@
 
 
     subToken %1,%%start,%%stop
-    %xdefine %%expression __0
+    %xdefine %%expression __1
     
 
     subToken %1,%%start,%2
-    %xdefine %%lhs __0
+    %xdefine %%lhs __1
     subToken %1,%eval(%%size + %2),%%stop
-    %xdefine %%rhs __0
+    %xdefine %%rhs __1
 
 
     retm %%lhs,%%rhs,%%expression
@@ -279,63 +279,113 @@
 ; evalOperator(mainToken,operator,operatorMacro)
 %macro evalOperator 3
     tokenLen %2
-    %assign %%operatorLen __0
+    %assign %%operatorLen __1
 
     %xdefine %%expression %1
 
     %rep 100000
         findInToken %%expression,%2
-        %if __0 == -1
+        %if __1 == -1
             %exitrep
         %endif
 
-        getOperands %%expression,__0,%%operatorLen
+        get2operands %%expression,__1,%%operatorLen
 
-        %xdefine %%operator1 __0
-        %xdefine %%operator2 __1
+        %xdefine %%operator1 __1
+        %xdefine %%operator2 __2
 
-        %xdefine %%varName exptempvar %+ varCounter
+        %xdefine %%varName exptempvar %+ varCount
         
 
         newt %%varName,8
 
 
         %3 %%operator1,%%operator2,%%varName
-        replaceToken %%expression,__2,%%varName
-        %xdefine %%expression __0
-        %assign varCounter varCounter+1
+        replaceToken %%expression,__3,%%varName
+        %xdefine %%expression __1
+        %assign varCount varCount+1
     %endrep
     retm %%expression
 %endmacro
 
+; x-3*(x-4),(,),1
+; expression,openChar,closeChar,replace
+%macro searchGroup 4
+    findPare %1,%2,%3
 
+    %ifidn __1,-1
+        retm -1
+        %exitmacro
+    %endif
+
+    %assign %%startIndex __1+1
+    %assign %%endIndex __2
+
+    subToken %1,%%startIndex,%%endIndex
+    %xdefine %%expression __1
+
+    %if %4
+        subToken %1,%eval(%%startIndex-1),%eval(%%endIndex+1)
+        %define %%original __1
+    %else
+        %define %%original %%expression
+    %endif
+
+    retm %%original,%%expression
+%endmacro
 
 %macro eval 1
 
     
     %define %%expression %1
-    %assign varCounter 0
+    %assign varCount 0
+    %assign %%recursiveCount 1
     resetTemp
 
-    evalOperator %%expression, * ,mul
-    %xdefine %%expression __0
+    %push
+    %xdefine %$expression %%expression
+    %xdefine %$original %%expression
+    %rep 100000
+        searchGroup %$expression,(,),1
+        %ifidn __1,-1
+            evalOperator %$expression, * ,mul
+            %xdefine %$expression __1
 
+            evalOperator %$expression, / ,div
+            %xdefine %$expression __1
 
-    evalOperator %%expression, / ,div
-    %xdefine %%expression __0
-
-
-    evalOperator %%expression, % ,mod
-    %xdefine %%expression __0
+            evalOperator %$expression, % ,mod
+            %xdefine %$expression __1
     
+            evalOperator %$expression, - ,sub
+            %xdefine %$expression __1
 
-    evalOperator %%expression, - ,sub
-    %xdefine %%expression __0
+            evalOperator %$expression, + ,add
+            %xdefine %$expression __1
 
 
-    evalOperator %%expression, + ,add
-    %xdefine %%expression __0
+            %assign %%recursiveCount %%recursiveCount-1
+            %if %%recursiveCount == 0
+                %xdefine %%expression %$expression    
+                %exitrep
+            %endif
 
+
+            %xdefine __1 %$original
+            %xdefine __2 %$expression
+            %pop
+            replaceToken %$expression,__1,__2
+            %xdefine %$expression __1
+
+        %else
+            %push
+            %xdefine %$original __1
+            %xdefine %$expression __2
+            %assign %%recursiveCount %%recursiveCount+1
+        
+        %endif
+    %endrep
+    %pop
 
     retm %%expression
 %endmacro

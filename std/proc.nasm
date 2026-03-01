@@ -47,28 +47,18 @@
     %rep %0
         %rotate -1
         TokenToNum %1
-        %ifnum __0
-            push qword __0
+        %ifnum __1
+            push qword __1
+        %elif isRef(%1)
+            lxd %1,rax
+            push qword __1
+        %elif size(%1)!=8
+            %assign %%size (size(%1)/8) * 8
+            %assign %%size (size(%1) % 8!=0? 8 : %%size)
+            sub rsp,%%size
+            mov [rsp],%1,8,size(%1)
         %else
-            %ifnum isPtr(%1)
-                %if isPtr(%1)=1
-                    mov [rsp-16],r15
-                    lea r15,%1
-                    push r15
-                    mov r15,[rsp-8]
-                %else
-                    push qword [ref(%1)]
-                %endif
-            %else
-                %if size(%1)!=8
-                    %assign %%size (size(%1)/8) * 8
-                    %assign %%size (size(%1) % 8!=0? 8 : %%size)
-                    sub rsp,%%size
-                    mov [rsp],%1,8,size(%1)
-                %else
-                    push %1
-                %endif
-            %endif
+            push %1
         %endif
     %endrep
 %endmacro
@@ -78,22 +68,19 @@
 %macro pop 1-*
     %rep %0
         %if size(%1) == 8
-            %ifnum group(%1)
-                pop %1
-            %else
-                pop qword [ref(%1)]
+            %if isReg(%1)
+                lxd %1,rax
+                pop qword __0
             %endif
         %else
-            %ifnum group(%1)
+            %if isReg(%1)
                 %assign %%size (size(%1)/8) * 8
                 %assign %%size (size(%1) % 8!=0? 8 : %%size)
-                mov %1,[rsp],size(%1),8 
+                mov %1,[rsp],size(%1),8
                 add rsp,%%size
             %else
-                mov [rsp-8],r15
-                mov r15,[rsp]
-                mov %1,r15
-                mov r15,[rsp-8]
+                mov rax,[rsp]
+                mov %1,rax
                 add rsp,8
             %endif 
         %endif
@@ -192,12 +179,8 @@
 
     %assign %%out 0
     %rep %0        
-        %ifnum group(%1)
-            mov [rbp + %eval(%$args+8-%%out)],%1,8,size(%1)
-        %else
-            mov rax, %1
-            mov [rbp + %eval(%$args+8-%%out)],rax
-        %endif
+        mov [rbp + %eval(%$args+8-%%out)],%1
+
         %assign %%out %%out+8
         %rotate 1
     %endrep
