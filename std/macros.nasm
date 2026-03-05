@@ -35,11 +35,14 @@
     %endrep
 %endmacro
 
-;defines a reg that isnt used as r and pushes it
-;resrp(?size-1,used-regs-1-*)
-%macro resrp 0-*
-    resr %{1:-1}
-    push r
+; toStr(token)
+%macro toStr 1
+    %ifstr %1
+        retm %1
+    %else
+        %defstr %%str %1
+        retm %%str
+    %endif
 %endmacro
 
 ; returns values from a macro to __1 ... __N
@@ -59,8 +62,10 @@
 
 ; findInToken(token1,token2)->index
 %macro findInToken 2
-    %defstr %%str1 %1
-    %defstr %%str2 %2
+    toStr %1
+    %xdefine %%str1 __1
+    toStr %2
+    %xdefine %%str2 __1
 
     %strlen %%lenStr1 %%str1
     %strlen %%lenStr2 %%str2
@@ -84,7 +89,8 @@
 
 ; subToken(token,start,stop?)->subtoken
 %macro subToken 2-3
-    %defstr %%str %1
+    toStr %1
+    %xdefine %%str __1
     %if %0=2
         %assign %%stop -1
     %elif %3>0
@@ -151,8 +157,8 @@
 %endmacro
 
 %macro tokenLen 1
-    %defstr %%str %1
-    %strlen %%len %%str
+    toStr %1
+    %strlen %%len __1
     retm %%len
 %endmacro
 
@@ -169,10 +175,11 @@
 
 ; check if a number is in a current byte size
 ; isNumInSize(num,size)
-%macro isNumInSize 2
-    %assign %%sizeInBits %2*8 -2
-    %assign %%max (2<<%%sizeInBits)-1
-    retm %eval((-%%max <= %1 && %1 <= %%max ? 1 : 0))
+%define isNumInSize(num,size) %eval(-((2<<(size*8-2))-1) <= num && num <= (2<<(size*8-2))-1 ? 1 : 0)
+
+; clearSpaces(token)->token without spaces
+%macro clearSpaces 1
+    replaceToken %1, " ", ""
 %endmacro
 
 ;replaceToken(original,old,new,times?)
@@ -238,9 +245,12 @@
 
     %xdefine %%endIndex -1
 
-    %defstr %%mainStr %1
-    %defstr %%startStr %2
-    %defstr %%endStr %3
+    toStr %1
+    %xdefine %%mainStr __1
+    toStr %2
+    %xdefine %%startStr __1
+    toStr %3
+    %xdefine %%endStr __1
     
     %strlen %%mainLen %%mainStr
     %strlen %%pareLen %%startStr

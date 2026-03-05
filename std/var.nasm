@@ -427,8 +427,7 @@
         %assign %%const __1
         setFloat %2,__2
 
-        isNumInSize %%const,4
-        %if __1!=1 && isReg(%2)!=1
+        %if isNumInSize(%%const,4)!=1 && isReg(%2)!=1
             resr %2
             mov r,%%const
             sizeByToken %2
