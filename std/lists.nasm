@@ -47,8 +47,7 @@
 
 ; dest,ref
 %macro blen 2
-    lea %2,%1
-    mov %1,[__1]
+    mov %1,%2
 %endmacro
 
 ; dest,ref

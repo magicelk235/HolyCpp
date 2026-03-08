@@ -1,28 +1,47 @@
 %assign listSizeOffset 8
 ; load ref's address
-; lea(ref,skipReg)
-; eg lea(ref,rax) if ref is ptr its address will load to a register that isnt rax -> __1=rax
-%macro lea 2
-    %if isDirectRef(%1)
-        %if ptr(%1)
-            resr %2
-            mov r,addr(%1)
-            retm r
-        %else
-            retm addr(%1)
-        %endif
-    %else
-        lea %1,%2
+; lra(ref,skipReg)
+; eg lra(ref,rax) if ref is ptr its address will load to a register that isnt rax -> __1=rbx
+%macro lra 2
+    retm 0
+    %ifidn ptr(%1),1
+        resr %2
+        mov r,addr(%1)
+        retm r
+    %elifidn ptr(%1),0
+        retm addr(%1)
     %endif
 %endmacro
 
-; set a ref to a float
-; setFloat(name,value)
-%macro setFloat 2 
-    %ifnum group(%1) ; ignores if reg
+;  a ref or lists address
+; addrOf(ref)
+%macro addrOf 2
+    lra %1,%2
+    %ifidn __1,0
+        getIndexOffset %1,%2
+    %endif
+%endmacro
+
+; ref/list,dest
+%macro lea 2
+    addrOf %1,%2
+    
+    %if isReg(%2)
+        lea %2,[__1]
     %else
+        %xdefine %%addr __1
+        resr %%addr
+        lea r,[%%addr]
+        mov %2,r
+    %endif
+
+%endmacro
+; set a ref to a float
+; setFloat(ref,value)
+%macro setFloat 2 
+    %if ! isReg(%1)
         splitIndex %1
-        %xdefine __float_%+%[__1] %2
+        %xdefine __float_%[__1] %2
     %endif
 %endmacro
 
@@ -448,12 +467,12 @@
 
     ; checks for direct ref
     %if isDirectRef(%1)
-        lea %1,%2
+        lra %1,%2
         retm [__1],size(%1)
         %exitmacro
     %endif
 
-    ; checks for memmory
+    ; checks for memory
     isDirectMemory %1
     %if __1
         retm %1,size(%2)
@@ -480,7 +499,7 @@
     %endif
 %endmacro
 
-%macro isMemmory 1
+%macro isMemory 1
     isDirectMemory %1
     %if __1
         retm 1
@@ -531,12 +550,12 @@
     %xdefine dest %1
     %xdefine src %2
 
-    isMemmory %1
-    %xdefine %%is1Memmory __1
-    isMemmory %2
-    %xdefine %%is2Memmory __1
+    isMemory %1
+    %xdefine %%is1Memory __1
+    isMemory %2
+    %xdefine %%is2Memory __1
     
-    %if %%is1Memmory && %%is2Memmory
+    %if %%is1Memory && %%is2Memory
         automov rax,%1
         %if %0==2
             automov %2,rax
