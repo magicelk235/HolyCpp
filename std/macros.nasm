@@ -477,7 +477,7 @@
         %xdefine %%operator2 __2
         %xdefine %%currentExpression __3
 
-        %xdefine %%varName exptempvar %+ varCount
+        %xdefine %%varName _TEV_ %+ varCount
         
 
         newt %%varName,8

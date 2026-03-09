@@ -25,7 +25,6 @@
 ; ref/list,dest
 %macro lea 2
     addrOf %1,%2
-    
     %if isReg(%2)
         lea %2,[__1]
     %else
@@ -34,7 +33,6 @@
         lea r,[%%addr]
         mov %2,r
     %endif
-
 %endmacro
 ; set a ref to a float
 ; setFloat(ref,value)
@@ -394,8 +392,16 @@
 
 ; moves that works with any given size to any given size
 ; movSize(dest,src,ds,ss)
-%macro movSize 4
-    %if %3 = 16 && %4 = 16 ; checks if both dest and src are  
+%macro movSize 4-5
+    
+    %if %0 == 5
+        %define %%extend zx
+    %else
+        %define %%extend sx
+    %endif
+
+
+    %if %3 = 16 && %4 = 16 ; checks if both dest and src are xmm 
         movdqu %1, %2
     %elif %3 = 16
         %if %4 = 8
@@ -410,16 +416,30 @@
             movd %1, %2
         %endif
     %elif %3 >= %4
-        %if %3 = %4
+        %if %3 == %4
             mov sizename(%3) %1, sizename(%3) %2
-        %elif %4 != 4
-            movsx sizename(%3) %1, sizename(%4) %2
+        %elif isReg(%1)
+            %if %4 != 4
+                mov%[%%extend] sizename(%3) %1, sizename(%4) %2
+            %else
+                mov%[%%extend]d qword %1, dword %2
+            %endif
         %else
-            movsxd qword %1, dword %2
+            resr s:%3,%2
+            %if %3 != 4
+                mov%[%%extend] r, sizename(%4) %2
+            %else
+                mov%[%%extend]d r, dword %2
+            %endif
+            mov %1,r
         %endif
     %else
-        %xdefine %%group group(%2)
-        mov %1, reg(%3, %%group)
+        %if isReg(%2)
+            %xdefine %%group group(%2)
+            mov %1, reg(%3, %%group)
+        %else
+            mov %1, %2
+        %endif
     %endif
 %endmacro
 
@@ -547,6 +567,21 @@
         %exitmacro
     %endif
 
+    %ifstr %2
+        %xdefine %%str %2
+        %strlen %%strlen %%str
+        %if %%strlen > 4
+            addrOf %1,rbx
+            %assign %%i 1
+            %rep %%strlen
+                %substr %%char %%str %%i
+                mov byte [__1 + %%i],%%char
+                %assign %%i %%i+1
+            %endrep
+        %endif
+        %exitmacro
+    %endif
+
     %xdefine dest %1
     %xdefine src %2
 
@@ -556,13 +591,18 @@
     %xdefine %%is2Memory __1
     
     %if %%is1Memory && %%is2Memory
-        automov rax,%1
+        automov rax,%2
         %if %0==2
-            automov %2,rax
+            automov %1,rax
         %else
-            automov %2,rax,%3,%4
+            automov %1,rax,%3,%4
         %endif
     %else
         automov %{1:-1}
     %endif
+%endmacro
+
+%macro let 2
+    eval %2
+    mov %1,__1
 %endmacro
