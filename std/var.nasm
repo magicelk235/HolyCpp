@@ -6,7 +6,7 @@
     retm 0
     %ifidn ptr(%1),1
         resr %2
-        mov r,addr(%1)
+        mov r,addr(%1),0,0,0
         retm r
     %elifidn ptr(%1),0
         retm addr(%1)
@@ -24,14 +24,17 @@
 
 ; ref/list,dest
 %macro lea 2
+
     addrOf %1,%2
     %if isReg(%2)
         lea %2,[__1]
-    %else
+    %elif isRef(%2)
         %xdefine %%addr __1
         resr %%addr
         lea r,[%%addr]
         mov %2,r
+    %else
+        lea %2,[%1]
     %endif
 %endmacro
 ; set a ref to a float
@@ -378,12 +381,14 @@
 ; search for [ at start
 ; isDirectMemory(token)
 %macro isDirectMemory 1
+    
     findInToken %1,[
-    %if __1 == 0
-        retm 1
-    %else
+    %if __1 != 0
         retm 0
+        %exitmacro
     %endif
+    findInToken %1,:
+    retm %eval(__1==-1)
 %endmacro
 
 ; checks if a token is a register
@@ -417,7 +422,7 @@
         %endif
     %elif %3 >= %4
         %if %3 == %4
-            mov sizename(%3) %1, sizename(%3) %2
+            mov sizename(%3) %1, sizename(%3) %2,0,0,0
         %elif isReg(%1)
             %if %4 != 4
                 mov%[%%extend] sizename(%3) %1, sizename(%4) %2
@@ -468,7 +473,7 @@
 
         %if isNumInSize(%%const,4)!=1 && isReg(%2)!=1
             resr %2
-            mov r,%%const
+            mov r,%%const,0,0,0
             sizeByToken %2
             retm r,__1
             %exitmacro
@@ -512,7 +517,7 @@
     %endif
 
     ; checks for lists
-    isTokenList %1
+    isTokenIndex %1
     %if __1
         getIndexOffset %1,%2
         %exitmacro
@@ -536,7 +541,7 @@
     lxd %1,%2
     %xdefine %%dest __1
 
-    %if %%0 == 4
+    %if %%0 >= 3
         %xdefine %%ds %3
     %else
         %xdefine %%ds __2
@@ -547,14 +552,41 @@
 
     %if %%0 == 4
         %xdefine %%ss %4
-    %else
+    %elifnum __2
         %xdefine %%ss __2
+    %else
+        %xdefine %%ss %%ds
     %endif
     movSize %%dest,%%src,%%ds,%%ss
 %endmacro
 
 %define dest 0
 %define src 0
+
+
+%macro doubleMemoryMov 2-4
+    isMemory %1
+    %xdefine %%is1Memory __1
+    isMemory %2
+    %xdefine %%is2Memory __1
+    %if %%is1Memory && %%is2Memory
+        automov rax,%2
+        %if %0==2
+            automov %1,rax
+        %else
+            automov %1,rax,%{3:-1}
+        %endif
+    %else
+        automov %{1:-1}
+    %endif
+%endmacro
+
+%macro mov 5
+    %if %0 == 5
+        mov %1,%2
+        %exitmacro
+    %endif
+%endmacro
 
 ; mov(dest,src,?ds,?ss)
 %macro mov 2-4
@@ -582,24 +614,21 @@
         %exitmacro
     %endif
 
-    %xdefine dest %1
-    %xdefine src %2
-
-    isMemory %1
-    %xdefine %%is1Memory __1
-    isMemory %2
-    %xdefine %%is2Memory __1
-    
-    %if %%is1Memory && %%is2Memory
-        automov rax,%2
-        %if %0==2
-            automov %1,rax
-        %else
-            automov %1,rax,%3,%4
-        %endif
-    %else
-        automov %{1:-1}
-    %endif
+    isTokenList %2
+    %if __1
+        %push
+        splitListToTokens %2
+        addrOf %1,rax
+        %xdefine %%addr __1
+        %assign %%i 1
+        %rep %$__0
+            doubleMemoryMov [%%addr+size(%1)*%%i],%$__%[%%i],size(%1)
+            %assign %%i %%i+1
+        %endrep
+        %pop
+        %exitmacro
+    %endif  
+    doubleMemoryMov %{1:-1}
 %endmacro
 
 %macro let 2

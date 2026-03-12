@@ -2,6 +2,7 @@
 %macro add 2-3
     %if %0 == 2
         add %1,%2
+        %exitmacro
     %endif
 
     isInputFloat %1,%2,%3
@@ -36,6 +37,7 @@
 %macro sub 2-3
     %if %0 == 2
         sub %1,%2
+        %exitmacro
     %endif
 
     isInputFloat %1,%2,%3

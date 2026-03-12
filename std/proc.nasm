@@ -11,10 +11,10 @@
     
     sub rsp,%eval(%%qwordSize*8)
     
-    %assign %$locals %$locals + %%qwordSize * 8
+    %assign locals locals + %%qwordSize * 8
     
     %if %0 = 3
-        desc %2,%1, rbp %eval(blackboxOffset-%$locals),%3
+        desc %2,%1, rbp %eval(blackboxOffset-locals),%3
     %endif
 %endmacro
 
@@ -33,11 +33,11 @@
 ; custom arg in a proc
 ; arg(name, size,isRef?)
 %macro arg 2-3
-    %assign %$args %$args + 8
+    %assign args args + 8
     %if %0 = 2
-        desc %1,%2,rbp+%eval(%$args+8),0
+        desc %1,%2,rbp+%eval(args+8),0
     %else
-        desc %1,%2,[rbp+%eval(%$args+8)],1
+        desc %1,%2,[rbp+%eval(args+8)],1
     %endif
 %endmacro
 
@@ -67,22 +67,18 @@
 ; pop
 %macro pop 1-*
     %rep %0
-        %if size(%1) == 8
-            %if isReg(%1)
-                lxd %1,rax
-                pop qword __0
-            %endif
-        %else
-            %if isReg(%1)
+        %if isReg(%1)
+            %if size(%1)!=8
                 %assign %%size (size(%1)/8) * 8
                 %assign %%size (size(%1) % 8!=0? 8 : %%size)
                 mov %1,[rsp],size(%1),8
                 add rsp,%%size
             %else
-                mov rax,[rsp]
-                mov %1,rax
-                add rsp,8
-            %endif 
+                pop %1
+            %endif
+        %else
+            mov %1,[rsp]
+            add rsp,8
         %endif
         %rotate 1
     %endrep
@@ -96,20 +92,20 @@
 ; defines a new proc
 ; proc(name,?outCount)
 %macro proc 1-2
-    %push
-    %define %$procName %1
-    global %$procName
-    %$procName:
+    %push 
+    %define %%procName %1
+    global %%procName
+    %%procName:
     push rbp
     mov rbp,rsp
     push rax,rbx,rcx,rdx,rsi,rdi,r8,r9,r10,r11,r12,r13,r14,r15,xmm0,xmm1,xmm2,xmm3,xmm4,xmm5,xmm6,xmm7
-    %assign %$locals 0
-    %assign %$args 0
-    %define %$out %[%$procName] %+ out
+    %assign locals 0
+    %assign args 0
+    %define out %[%%procName]out
     %if %0 == 2
-        %assign %$out %2*8
+        %assign out %2*8
     %else
-        %assign %$out 0
+        %assign out 0
     %endif
     %define inProc 1
 %endmacro
@@ -129,10 +125,10 @@
 ; endp
 %macro endp 0
     %$exit:
-    add rsp, %$locals
+    add rsp, locals
     pop rax,rbx,rcx,rdx,rsi,rdi,r8,r9,r10,r11,r12,r13,r14,r15,xmm0,xmm1,xmm2,xmm3,xmm4,xmm5,xmm6,xmm7
     pop rbp
-    ret %eval(%$args-%$out)
+    ret %eval(args-out)
     %pop
     %define inProc 0
 %endmacro
@@ -173,13 +169,13 @@
 ; return's values from a proc
 ; retp(out[])
 %macro retp 0-*
-    %if %$out>%$args
-        %assign %$args %$out
+    %if out>args
+        %assign args out
     %endif
 
     %assign %%out 0
     %rep %0        
-        mov [rbp + %eval(%$args+8-%%out)],%1
+        mov [rbp + %eval(args+8-%%out)],%1
 
         %assign %%out %%out+8
         %rotate 1

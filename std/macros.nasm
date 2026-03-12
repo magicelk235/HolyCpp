@@ -46,15 +46,26 @@
 %endmacro
 
 ; returns values from a macro to __1 ... __N
+; s: -> use stackcontext
 ; retm(outs)
 %macro retm 1-*
 
-    %xdefine __0 %0
+    
+    %ifidn %1,s:
+        %xdefine %%extend %$__
+        %assign %%stackUsed 1
+    %else
+        %xdefine %%extend __
+        %assign %%stackUsed 0
+    %endif
 
+    
+    %xdefine %[%%extend]0 %eval(%0-%%stackUsed)
     %assign %%i 1
-    %rep %0
+    %rotate %%stackUsed
+    %rep %eval(%0-%%stackUsed)
         %xdefine %%index %%i
-        %xdefine __%[%%i] %1
+        %xdefine %[%%extend]%[%%i] %1
         %rotate 1
         %assign %%i %%i+1
     %endrep
@@ -87,6 +98,32 @@
     %endrep
 %endmacro
 
+; tokenCount(token1,token2)->count
+%macro tokenCount 2
+    toStr %1
+    %xdefine %%str1 __1
+    toStr %2
+    %xdefine %%str2 __1
+
+    %strlen %%lenStr1 %%str1
+    %strlen %%lenStr2 %%str2
+    %define %%sub ''
+    %assign %%i 1
+    %assign %%count 0
+    %assign %%loopTimes (%%lenStr1-%%lenStr2)+1
+    %if %%loopTimes<=0
+        %exitmacro
+    %endif
+
+    %rep %%loopTimes
+        %substr %%sub %%str1 %%i,%%lenStr2
+        %ifidni %%sub,%%str2
+            %assign %%count %%count+1
+        %endif
+        %assign %%i %%i+1
+    %endrep
+    retm %%count
+%endmacro
 ; subToken(token,start,stop?)->subtoken
 %macro subToken 2-3
     toStr %1
@@ -365,6 +402,11 @@
     %endif
 
     %ifidn %1,>
+        retm 1
+        %exitmacro
+    %endif
+
+    %ifidn %1,:
         retm 1
         %exitmacro
     %endif
