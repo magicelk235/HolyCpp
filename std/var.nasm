@@ -46,10 +46,10 @@
     %endif
 %endmacro
 
-; makes a new ref that store size,addr,ptr, float
-; eg: desc(var1,8(qword),rbp-128,0) 
-; desc(ref's name,size,addr,ptr)
-%macro desc 4
+; makes a new ref that store size,addr,ptr,float
+; eg: newRef(var1,8(qword),rbp-128,0) 
+; newRef(ref's name,size,addr,ptr)
+%macro newRef 4
     %xdefine __size_%1 %2 ;-> __size_name 
     %xdefine __addr_%1 %3; -> __addr_name
     %xdefine __ptr_%1 %4 ; -> ptr_name
@@ -62,15 +62,16 @@
     section .bss
     %if %0 = 2 ; if not array
         __global_label_%1 resb %2
+        section .text
     %else ; if array stores the size in qword,and size*time array
         __global_label_%1 resb listSizeOffset
         resb %3*%2
         section .text
         
-        mov [__global_label_%1],%eval(%2*%3),8,8
+        mov [__global_label_%1],%3,8,8
     %endif
-    desc %1,%2,__global_label_%1,0
-    section .text
+    newRef %1,%2,__global_label_%1,0
+    
 %endmacro
 
 ; gets if a ref is a float
@@ -382,8 +383,8 @@
 ; isDirectMemory(token)
 %macro isDirectMemory 1
     
-    findInToken %1,[
-    %if __1 != 0
+    subToken %1,0,1
+    %ifnidn __1,[
         retm 0
         %exitmacro
     %endif
@@ -405,7 +406,6 @@
         %define %%extend sx
     %endif
 
-
     %if %3 = 16 && %4 = 16 ; checks if both dest and src are xmm 
         movdqu %1, %2
     %elif %3 = 16
@@ -417,8 +417,10 @@
     %elif %4 = 16
         %if %3 = 8
             movq %1, %2
+            setFloat %1
         %elif %3 = 4
             movd %1, %2
+            setFloat %1
         %endif
     %elif %3 >= %4
         %if %3 == %4
@@ -534,6 +536,8 @@
     retm isRef(%1)
 %endmacro
 
+%define oldAutomovDest 0
+%define oldAutomovSrc 0
 
 ; automov(dest,src,?ds,?ss)
 %macro automov 2-4
@@ -557,14 +561,23 @@
     %else
         %xdefine %%ss %%ds
     %endif
+
+    %ifidn %%dest,%%src
+        %exitmacro
+    %elif isidn(%%dest,oldAutomovDest) && isidn(%%src,oldAutomovSrc)
+        %exitmacro
+    %elif isidn(%%src,oldAutomovDest) && isidn(%%dest,oldAutomovSrc)
+        %exitmacro
+    %endif
+    
+    %xdefine oldAutomovDest %%dest
+    %xdefine oldAutomovSrc %%src
     movSize %%dest,%%src,%%ds,%%ss
 %endmacro
 
-%define dest 0
-%define src 0
-
 
 %macro doubleMemoryMov 2-4
+
     isMemory %1
     %xdefine %%is1Memory __1
     isMemory %2
@@ -582,20 +595,24 @@
 %endmacro
 
 %macro mov 5
-    %if %0 == 5
-        mov %1,%2
-        %exitmacro
-    %endif
+    mov %1,%2
 %endmacro
+
+%define oldMovDest 0
+%define oldMovSrc 0
 
 ; mov(dest,src,?ds,?ss)
 %macro mov 2-4
 
     %ifidn %1,%2
         %exitmacro
-    %elif %isidn(dest,%1) && %isidn(src,%2)
+    %elif %isidn(oldMovDest,%1) && %isidn(oldMovSrc,%2)
         %exitmacro
-    %elif %isidn(dest,%2) && %isidn(src,%1)
+    %elif %isidn(oldMovDest,%2) && %isidn(oldMovSrc,%1)
+        %exitmacro
+    %elifidn addr(%1),addr(%2)
+        %exitmacro
+    %elifidn group(%1),group(%2)
         %exitmacro
     %endif
 
@@ -604,12 +621,14 @@
         %strlen %%strlen %%str
         %if %%strlen > 4
             addrOf %1,rbx
-            %assign %%i 1
+            mov qword [__1],%%strlen
+            %assign %%i 0
             %rep %%strlen
                 %substr %%char %%str %%i
-                mov byte [__1 + %%i],%%char
+                mov byte [__1 + %%i + listSizeOffset],%%char
                 %assign %%i %%i+1
             %endrep
+            mov byte [__1 + %%i + listSizeOffset],0
         %endif
         %exitmacro
     %endif
@@ -627,7 +646,7 @@
         %endrep
         %pop
         %exitmacro
-    %endif  
+    %endif
     doubleMemoryMov %{1:-1}
 %endmacro
 
