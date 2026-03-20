@@ -19,6 +19,11 @@
     %xdefine %%ref __1
     %xdefine %%index __2
 
+    %ifidn %%index,#
+        lsd %%ref,%2
+        retm __1,8
+        %exitmacro
+    %endif
 
     lra %%ref,%%index
     %xdefine %%base __1
@@ -72,14 +77,4 @@
         %xdefine %%list __1
     %endrep
     retm s:,%%tokensList
-%endmacro
-; dest,ref
-%macro blen 2
-    mov %1,%2
-%endmacro
-
-; dest,ref
-%macro len 2
-    blen %1,%2
-    div %1,size(%2),%1
 %endmacro

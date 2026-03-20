@@ -278,11 +278,17 @@
     %else
         %xdefine %%newToken %%leftPart%+%3%+%%rightPart
     %endif
-    
-    
-
     %endrep
     retm %%newToken
+%endmacro
+
+%macro sumSize 1-*
+    %assign %%size 0
+    %rep %0
+        %assign %%size %%size+size(%1)
+        %rotate 1
+    %endrep
+    retm %%size
 %endmacro
 
 ; findPare(mainToken,start,stop)
@@ -676,3 +682,6 @@
 
     retm %%expression
 %endmacro
+
+%define max(x,y) %eval((x>=y)*(x)+(x<y)*(y))
+%define min(x,y) %eval( (x>=y)*(y)+(x<y)*(x))
