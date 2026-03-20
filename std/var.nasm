@@ -379,7 +379,7 @@
     %define __group_eip 24
     %define __group_rip 24
 
-%define isXmmReg(reg) isReg(reg)&&size(reg)==16
+%define isXmmReg(reg) %eval(%isidn(size(reg),16))
 
 ; search for [ at start
 ; isDirectMemory(token)

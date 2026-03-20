@@ -600,7 +600,7 @@
     %define %%expression %1
     %assign varCount 0
     %assign %%recursiveCount 1
-    resetTemp
+    startTemp
 
     %push
     %xdefine %$expression %%expression
@@ -679,7 +679,7 @@
         %endif
     %endrep
     %pop
-
+    endTemp
     retm %%expression
 %endmacro
 
