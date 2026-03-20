@@ -101,113 +101,22 @@
 %endmacro
 
 %macro bXor 3
-    %if size(%3) == 1
-        mov al,%1
-        lxd %2,al
-        xor al,__1
-    %elif size(%3) == 2
-        mov ax,%1
-        lxd %2,ax
-        xor ax,__1
-    %elif size(%3) == 4
-        mov eax,%1
-        lxd %2,eax
-        xor eax,__1
-    %else
-        mov rax,%1
-        lxd %2,rax
-        xor rax,__1
-    %endif
+    cmp %1,0,%3
     setne al
+    cmp %2,0,%3
+    setne cl
+    xor al,cl
     mov %3,al
 %endmacro
 
 %macro bAnd 3
-    %if size(%3) == 1
-        mov al,%1
-        lxd %2,al
-        and al,__1
-    %elif size(%3) == 2
-        mov ax,%1
-        lxd %2,ax
-        and ax,__1
-    %elif size(%3) == 4
-        mov eax,%1
-        lxd %2,eax
-        and eax,__1
-    %else
-        mov rax,%1
-        lxd %2,rax
-        and rax,__1
-    %endif
-    setne al
-    mov %3,al
-%endmacro
-
-%macro setBlockType 1
-    %xdefine %$blockType %1
-%endmacro
-
-%macro if 1
-    %push 
-    setBlockType "if"
-    %$ifcheck:
-    %assign %$blockCount 0
-    eval %1
-    cmp qword [addr(__1)],false
-    je %$next%[%$blockCount]
-%endmacro
-
-%macro else 0
-    jmp %$exitIf
-    %$next%[%$blockCount]:
-    %assign %$blockCount %$blockCount+1
-%endmacro
-
-%macro elif 1
-    else
-    eval %1
-    cmp qword [addr(__1)],false
-    je %$next%[%$blockCount]
-%endmacro 
-
-%macro break 0
-    jmp %$end
-%endmacro
-
-%macro continue 0
-    jmp %$check
-%endmacro
-
-%macro end 0
-    %ifidn %$blockType,"while"
-        jmp %$check
-    %elifidn %$blockType,"if"
-        %$next%[%$blockCount]:
-        jmp %$end
-    %elifidn %$blockType,"dowhile"
-        eval %$expression
-        cmp qword [addr(__1)],false
-        jne %$check
-    %endif
-    %$exit:
-    %pop 
-%endmacro
-
-%macro while 1
-    %push
-    setBlockType "while"
-    %assign %$blockCount 0
-    %$check:
-    eval %1
-    cmp qword [addr(__1)],false
-    je %$exit
-%endmacro
-
-%macro dowhile 1
-    %push
-    setBlockType "dowhile"
-    %assign %$blockCount 0
-    %xdefine %$expression %1
-    %$check:
+    cmp %1,0,%3
+    je %%false
+    cmp %2,0,%3
+    je %%false
+    mov %3,1
+    jmp %%end
+    %%false:
+    mov %3,0
+    %%end:
 %endmacro
