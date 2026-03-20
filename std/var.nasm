@@ -379,6 +379,8 @@
     %define __group_eip 24
     %define __group_rip 24
 
+%define isXmmReg(reg) isReg(reg)&&size(reg)==16
+
 ; search for [ at start
 ; isDirectMemory(token)
 %macro isDirectMemory 1
@@ -417,10 +419,8 @@
     %elif %4 = 16
         %if %3 = 8
             movq %1, %2
-            setFloat %1
         %elif %3 = 4
             movd %1, %2
-            setFloat %1
         %endif
     %elif %3 >= %4
         %if %3 == %4
@@ -569,10 +569,13 @@
     %elif isidn(%%src,oldAutomovDest) && isidn(%%dest,oldAutomovSrc)
         %exitmacro
     %endif
-    
+
     %xdefine oldAutomovDest %%dest
     %xdefine oldAutomovSrc %%src
     movSize %%dest,%%src,%%ds,%%ss
+    %if isXmmReg(%2)
+        setFloat %1
+    %endif
 %endmacro
 
 
