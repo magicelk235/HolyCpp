@@ -41,14 +41,15 @@
             jmp %$check
         %elifidn %$blockType,"if"
             %$next%[%$blockCount]:
-            jmp %$end:
+            jmp %$end
         %elifidn %$blockType,"dowhile"
             eval %$expression
             cmp qword [addr(__1)],false
             jne %$check
         %endif
         %$end:
-    %pop 
+        %pop
+    %endif
 %endmacro
 
 %macro while 1
@@ -58,7 +59,7 @@
     %$check:
     eval %1
     cmp qword [addr(__1)],false
-    je %$exit
+    je %$end
 %endmacro
 
 %macro dowhile 1

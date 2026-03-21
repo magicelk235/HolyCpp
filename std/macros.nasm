@@ -150,48 +150,23 @@
 
 %define emptyToken @@EMPTY@@
 %define isEmpty(token) %isidn(token,emptyToken)
+%define isTokenFloat(x) %eval(!%isnum(0%+x))
+%define isTokenNum(x) %eval(%isnum(x)||isTokenFloat(x))
+%define numType(x) isTokenFloat(x)
 
-; checks if a token is a float number
-%macro isTokenFloat 1
-    findInToken %1 , .
-    %if __1=-1
-        retm 0
-        %exitmacro
-    %endif
-    %xdefine %%dotIndex __1
-
-    ; checks if x is a number in x.y
-    subToken %1,0,%%dotIndex
-    %ifnum __1
-    %else
-        retm 0
-        %exitmacro
-    %endif
-
-    ; checks if y is a number in x.y
-    subToken %1,%%dotIndex+1
-    %ifnum __1
-    %else
-        retm 0
-        %exitmacro
-    %endif
-
-    retm 1
-%endmacro
-
-; isTokenNum(token)->t/f, type int=0,float=1
-%macro isTokenNum 1
-    %ifnum %1
-        retm 1,0
-    %else
-        isTokenFloat %1
-        %if __1
-            retm 1,1
-        %else
-            retm 0,0
-        %endif
-    %endif    
-%endmacro
+; ; isTokenNum(token)->t/f, type int=0,float=1
+; %macro isTokenNum 1
+;     %ifnum %1
+;         retm 1,0
+;     %else
+;         isTokenFloat %1
+;         %if __1
+;             retm 1,1
+;         %else
+;             retm 0,0
+;         %endif
+;     %endif    
+; %endmacro
 
 %macro tokenLen 1
     toStr %1
@@ -199,33 +174,17 @@
     retm %%len
 %endmacro
 
-; isInputFloat(token...)
-; checks if at least one token is a float const or float ref
-%macro isInputFloat 1-*
-    retm 0
-    %rep %0
-        isTokenFloat %1
-        %if __1 == 1
-            retm 1
-            %exitrep
-        %elifidn float(%1),1
-            retm 1
-            %exitrep
-        %endif
-        %rotate 1
-    %endrep
-%endmacro
-
-
+%define isInputFloat(a)     (isTokenFloat(a)||%isidn(float(a),1))                                                                                                                
+%define isInputFloat(a,b)   (isInputFloat(a)||isInputFloat(b))                                                                                                               
+%define isInputFloat(a,b,c) (isInputFloat(a,b)||isInputFloat(c))  
 
 ; converts a token to a number and return the type(0=int,1=float)
 ;TokenToNum(token)
 %macro TokenToNum 1
-    isTokenNum %1
-    %if __1 == 1 && __2 == 1
-        retm %eval(__float64__(%1)),__2
+    %if isTokenFloat(%1)
+        retm %eval(__float64__(%1)),1
     %else
-        retm %1,__2
+        retm %1,0
     %endif
 %endmacro
 
@@ -633,16 +592,16 @@
             evalOperator2Operands %$expression, == ,eq
             %xdefine %$expression __1
 
-            evalOperator2Operands %$expression,>,greater
-            %xdefine %$expression __1
-
-            evalOperator2Operands %$expression,<,lower
-            %xdefine %$expression __1
-
             evalOperator2Operands %$expression,>=,greaterEq
             %xdefine %$expression __1
 
             evalOperator2Operands %$expression,<=,lowerEq
+            %xdefine %$expression __1
+
+            evalOperator2Operands %$expression,>,greater
+            %xdefine %$expression __1
+
+            evalOperator2Operands %$expression,<,lower
             %xdefine %$expression __1
 
             evalOperator1Operand %$expression,!,bnot

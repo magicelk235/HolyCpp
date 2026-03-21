@@ -8,11 +8,12 @@
         %exitmacro
     %endif
 
-    isInputFloat %1,%2,%3
-    %if __1
+    %if isInputFloat %1,%2,%3
         mov xmm0,%1
         mov xmm1,%2
         ucomisd xmm0, xmm1
+        retm 1
+        %exitmacro
     %elif size(%3) == 1
         mov al,%1
         lxd %2,al
@@ -30,6 +31,7 @@
         lxd %2,rax
         cmp rax,__1
     %endif
+    retm 0
 %endmacro
 
 %macro eq 3
@@ -50,7 +52,11 @@
 ; var1<var2
 %macro lower 3
     cmp %1,%2,%3
-    setl al
+    %if __1
+        setb al
+    %else
+        setl al
+    %endif
     mov %3,al 
 %endmacro
 
@@ -58,7 +64,11 @@
 ; var1>var2
 %macro greater 3
     cmp %1,%2,%3
-    setg al
+    %if __1
+        seta al
+    %else
+        setg al
+    %endif
     mov %3,al 
 %endmacro
 
@@ -66,7 +76,11 @@
 ; var1<=var2
 %macro lowerEq 3
     cmp %1,%2,%3
-    setle al
+    %if __1
+        setbe al
+    %else
+        setle al
+    %endif
     mov %3,al 
 %endmacro
 
@@ -74,7 +88,11 @@
 ; var1>=var2
 %macro greaterEq 3
     cmp %1,%2,%3
-    setge al
+    %if __1
+        setae al
+    %else
+        setge al
+    %endif
     mov %3,al 
 %endmacro
 

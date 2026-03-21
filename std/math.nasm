@@ -5,8 +5,8 @@
         %exitmacro
     %endif
 
-    isInputFloat %1,%2,%3
-    %if __1
+    
+    %if isInputFloat(%1,%2,%3)
         mov xmm0,%1
         mov xmm1,%2
         addsd xmm0,xmm1
@@ -40,8 +40,7 @@
         %exitmacro
     %endif
 
-    isInputFloat %1,%2,%3
-    %if __1
+    %if isInputFloat(%1,%2,%3)
         mov xmm0,%1
         mov xmm1,%2
         subsd xmm0,xmm1
@@ -54,7 +53,7 @@
     %elif size(%3) == 2
         mov ax,%1
         lxd %2,ax
-        add ax,__1
+        sub ax,__1
         mov %3,ax
     %elif size(%3)==4
         mov eax,%1
@@ -71,8 +70,7 @@
 
 ; mul(var1,var2,dest)
 %macro mul 3
-    isInputFloat %1,%2,%3
-    %if __1
+    %if isInputFloat %1,%2,%3
         mov xmm0,%1
         mov xmm1,%2
         mulsd xmm0,xmm1
@@ -102,8 +100,7 @@
 
 ; div(var1,var2,dest)
 %macro div 3
-    isInputFloat %1,%2,%3
-    %if __1
+    %if isInputFloat %1,%2,%3
         mov xmm0,%1
         mov xmm1,%2
         divsd xmm0,xmm1
@@ -145,7 +142,7 @@
             
         cmp ah,0
         jge %%byteIsPos
-        add ah,%1,ah
+        add ah,%2,ah
         %%byteIsPos:
         mov %3,ah
     %elif size(%3) == 2
@@ -156,7 +153,7 @@
     
         cmp dx,0
         jge %%wordIsPos
-        add dx,%1,dx
+        add dx,%2,dx
         %%wordIsPos:
         mov %3,dx
     %elif size(%3)==4
@@ -167,7 +164,7 @@
             
         cmp edx,0
         jge %%bwordIsPos
-        add edx,%1,edx
+        add edx,%2,edx
         %%bwordIsPos:
         mov %3,edx
     %else
@@ -178,7 +175,7 @@
             
         cmp rdx,0
         jge %%qwordIsPos
-        add rdx,%1,rdx
+        add rdx,%2,rdx
         %%qwordIsPos:
         mov %3,rdx
     %endif
@@ -187,8 +184,7 @@
 ; pow(var1,var2,dest)
 %macro pow 3
     mov rcx,%2 ; times
-    isInputFloat %1,%2,%3
-    %if __1
+    %if isInputFloat %1,%2,%3
         mov xmm0,%1 ;var1
         mov xmm1,1.0
 

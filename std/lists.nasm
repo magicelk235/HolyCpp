@@ -39,11 +39,7 @@
     %endif
 %endmacro
 
-; isTokenIndex(Token)
-%macro isTokenIndex 1
-    findInToken %1,[
-    retm %eval(__1!=-1&&__1!=0)
-%endmacro
+%define isTokenIndex(x) isRef(x)&&!isDirectRef(x)
 
 %macro isTokenList 1
     findInToken %1,:

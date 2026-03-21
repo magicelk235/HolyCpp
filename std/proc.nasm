@@ -19,6 +19,7 @@
     %else
         ress %2*%3
         ress listSizeOffset,%1,0
+        %assign __size_%+%1 %2
         mov %1,%3,8,8
     %endif
 %endmacro
@@ -92,6 +93,7 @@
     %assign __heldSize_%1 0
     %define __held_%1 -1
     %assign __locals_%1 0
+    %assign __procClean_%1 0
 %endmacro
 
 %define locals(x) __locals_ %+ x
@@ -99,6 +101,7 @@
 %define outs(x) __outs_%+ x
 %define heldSize(x) __heldSize_ %+ x
 %define held(x) __held_ %+ x
+%define procClean(x) __procClean_ %+ x
 
 %macro hold 1-*
     sumSize %{1:-1}
@@ -133,7 +136,7 @@
 ; newt(name,size)
 %macro newt 2
     %assign tempTotal tempTotal+%2
-    %assign tempOffset tempOffset+tempTotal
+    %assign tempOffset tempOffset+%2
     sub rsp,%2
     newRef %1,%2,rbp-tempOffset,0
 %endmacro
@@ -166,8 +169,10 @@
     %if heldSize(procName)
         pop held(procName)
     %endif
+    %assign __procClean_%[procName] max((args(procName) - outs(procName))*8,0)
     pop rbp
-    ret max((args(procName) - outs(procName))*8,0)
+    ret procClean(procName)
+    %pop
     %define inProc 0
 %endmacro
 
@@ -207,8 +212,8 @@
         %rotate -1
         pop %1
     %endrep
-    
-    %assign %%clear (max(%%totalArgs,%%outs))-%%outs-(max(%%procArgs-%%outs,0))
+    ; total stack - outs - procClean
+    %assign %%clear (max(%%totalArgs,%%outs)-%%outs)*8-procClean(%%procName)
     ; if the proc got more data the usual clean it
     %if %%clear
         add rsp,%%clear

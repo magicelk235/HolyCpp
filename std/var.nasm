@@ -50,7 +50,7 @@
 ; eg: newRef(var1,8(qword),rbp-128,0) 
 ; newRef(ref's name,size,addr,ptr)
 %macro newRef 4
-    %xdefine __size_%1 %2 ;-> __size_name 
+    %assign __size_%1 %2 ;-> __size_name 
     %xdefine __addr_%1 %3; -> __addr_name
     %xdefine __ptr_%1 %4 ; -> ptr_name
     setFloat %1,0
@@ -468,12 +468,11 @@
 ;lsd
 %macro lsd 2
     ; const number check
-    TokenToNum %1
-    %ifnum __1
+    %if isTokenNum(%1)
+        TokenToNum %1
         %assign %%const __1
         setFloat %2,__2
-
-        %if isNumInSize(%%const,4)!=1 && isReg(%2)!=1
+        %if !(isNumInSize(%%const,4) || isReg(%2))
             resr %2
             mov r,%%const,0,0,0
             sizeByToken %2
@@ -519,8 +518,7 @@
     %endif
 
     ; checks for lists
-    isTokenIndex %1
-    %if __1
+    %if isTokenIndex(%1)
         getIndexOffset %1,%2
         %exitmacro
     %endif
@@ -574,7 +572,7 @@
     %xdefine oldAutomovSrc %%src
     movSize %%dest,%%src,%%ds,%%ss
     %if isXmmReg(%2)
-        setFloat %1
+        setFloat %1,1
     %endif
 %endmacro
 
@@ -625,13 +623,13 @@
         %if %%strlen > 4
             addrOf %1,rbx
             mov qword [__1],%%strlen
-            %assign %%i 0
+            %assign %%i 1
             %rep %%strlen
                 %substr %%char %%str %%i
-                mov byte [__1 + %%i + listSizeOffset],%%char
+                mov byte [__1 + %%i-1 + listSizeOffset],%%char
                 %assign %%i %%i+1
             %endrep
-            mov byte [__1 + %%i + listSizeOffset],0
+            mov byte [__1 + %%i-1 + listSizeOffset],0
         %endif
         %exitmacro
     %endif
@@ -644,7 +642,7 @@
         %xdefine %%addr __1
         %assign %%i 1
         %rep %$__0
-            doubleMemoryMov [%%addr+size(%1)*%%i],%$__%[%%i],size(%1)
+            doubleMemoryMov [%%addr+size(%1)*(%%i-1)+ listSizeOffset],%$__%[%%i],size(%1)
             %assign %%i %%i+1
         %endrep
         %pop
