@@ -130,33 +130,51 @@
     newRef argv,8,addr(argc),0
 %endmacro
 
-%assign tempOffset 0
-%assign tempTotal 0
+; start
+%assign tempRbpOffset 0
+; count
+%assign tempRbpVariables 0
+; allocated
+%assign tempRbpAllocated 96
 
-; newt(name,size)
-%macro newt 2
-    %assign tempTotal tempTotal+%2
-    %assign tempOffset tempOffset+%2
-    sub rsp,%2
-    newRef %1,%2,rbp-tempOffset,0
+; newtbp(name,size)
+%macro newtbp 2
+    %assign tempRbpOffset tempRbpOffset+%2
+    %assign tempRbpVariables tempRbpVariables+%2
+    %if tempRbpVariables>tempRbpAllocated
+        %assign tempRbpAllocated tempRbpAllocated+32
+        sub rsp,32
+    %endif
+    newRef %1,%2,rbp-tempRbpOffset,0
 %endmacro
 
-%macro startTemp 0
-    %assign tempTotal 0
+%macro startTempBp 0
+    %assign tempRbpVariables 0
+    %assign tempRbpAllocated 96
     %if inProc
-        %assign tempOffset locals(procName)+heldSize(procName)
+        %assign tempRbpOffset locals(procName)+heldSize(procName)
     %else
-        %assign tempOffset 0
+        %assign tempRbpOffset 0
         push rbp
         mov rbp,rsp
     %endif
+    sub rsp,tempRbpAllocated
 %endmacro
 
-%macro endTemp 0
-    add rsp,tempTotal
+%macro endTempBp 0
+    add rsp,tempRbpAllocated
     %if !inProc
         pop rbp
     %endif
+%endmacro
+
+%macro startTempSp 0
+    %assign tempSpVariables 0
+%endmacro
+
+%macro newtSp 2
+    %assign tempSpVariables tempSpVariables+%2
+    newRef %1,%2,rsp-tempSpVariables,0
 %endmacro
 
 ; defines the end of a proc

@@ -438,7 +438,7 @@
             %else
                 mov%[%%extend]d r, dword %2
             %endif
-            mov %1,r
+            mov %1,r,0,0,0
         %endif
     %else
         %if isReg(%2)

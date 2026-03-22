@@ -8,7 +8,7 @@
         %exitmacro
     %endif
 
-    %if isInputFloat %1,%2,%3
+    %if isInputFloat(%1,%2,%3)
         mov xmm0,%1
         mov xmm1,%2
         ucomisd xmm0, xmm1

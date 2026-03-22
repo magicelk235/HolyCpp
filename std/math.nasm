@@ -1,3 +1,10 @@
+%macro addF 3
+    mov xmm0,%1
+    mov xmm1,%2
+    addsd xmm0,xmm1
+    mov %3,xmm0
+%endmacro
+
 ; add(var1,var2,dest)
 %macro add 2-3
     %if %0 == 2
@@ -5,12 +12,8 @@
         %exitmacro
     %endif
 
-    
     %if isInputFloat(%1,%2,%3)
-        mov xmm0,%1
-        mov xmm1,%2
-        addsd xmm0,xmm1
-        mov %3,xmm0
+        addF %1,%2,%3
     %elif size(%3) == 1
         mov al,%1
         lxd %2,al
@@ -33,6 +36,14 @@
         mov %3,rax
     %endif
 %endmacro
+
+%macro subF 3
+    mov xmm0,%1
+    mov xmm1,%2
+    subsd xmm0,xmm1
+    mov %3,xmm0
+%endmacro
+
 ; subp(var1,var2,dest)
 %macro sub 2-3
     %if %0 == 2
@@ -41,10 +52,7 @@
     %endif
 
     %if isInputFloat(%1,%2,%3)
-        mov xmm0,%1
-        mov xmm1,%2
-        subsd xmm0,xmm1
-        mov %3,xmm0
+        subF %1,%2,%3
     %elif size(%3) == 1
         mov al,%1
         lxd %2,al
@@ -68,13 +76,17 @@
     %endif
 %endmacro
 
+%macro mulF 3
+    mov xmm0,%1
+    mov xmm1,%2
+    mulsd xmm0,xmm1
+    mov %3,xmm0
+%endmacro
+
 ; mul(var1,var2,dest)
 %macro mul 3
-    %if isInputFloat %1,%2,%3
-        mov xmm0,%1
-        mov xmm1,%2
-        mulsd xmm0,xmm1
-        mov %3,xmm0
+    %if isInputFloat(%1,%2,%3)
+        mulF %1,%2,%3
     %elif size(%3) == 1
         mov al,%1
         lxd %2,al
@@ -98,13 +110,17 @@
     %endif
 %endmacro
 
+%macro divF 3
+    mov xmm0,%1
+    mov xmm1,%2
+    divsd xmm0,xmm1
+    mov %3,xmm0
+%endmacro
+
 ; div(var1,var2,dest)
 %macro div 3
-    %if isInputFloat %1,%2,%3
-        mov xmm0,%1
-        mov xmm1,%2
-        divsd xmm0,xmm1
-        mov %3,xmm0
+    %if isInputFloat(%1,%2,%3)
+        divF %1,%2,%3
     %elif size(%3) == 1
         mov al,%1
         cbw 
@@ -181,24 +197,62 @@
     %endif
 %endmacro
 
+; addF(src1,src2,dest)
+%macro addF 3
+    mov xmm0,%1
+    mov xmm1,%2
+    addsd xmm0,xmm1
+    mov %3,xmm0
+%endmacro
+
+; subF(src1,src2,dest)
+%macro subF 3
+    mov xmm0,%1
+    mov xmm1,%2
+    subsd xmm0,xmm1
+    mov %3,xmm0
+%endmacro
+
+; mulF(src1,src2,dest)
+%macro mulF 3
+    mov xmm0,%1
+    mov xmm1,%2
+    mulsd xmm0,xmm1
+    mov %3,xmm0
+%endmacro
+
+; divF(src1,src2,dest)
+%macro divF 3
+    mov xmm0,%1
+    mov xmm1,%2
+    divsd xmm0,xmm1
+    mov %3,xmm0
+%endmacro
+
+; powF(src1,src2,dest)
+%macro powF 3
+    mov rcx,%2
+    mov xmm0,%1
+    mov xmm1,1.0
+
+    cmp rcx,0
+    je %%powFLoopExit
+
+    %%powFLoop:
+    mulsd xmm1,xmm0
+    dec rcx
+    jnz %%powFLoop
+    %%powFLoopExit:
+    mov %3,xmm1
+%endmacro
+
 ; pow(var1,var2,dest)
 %macro pow 3
-    mov rcx,%2 ; times
-    %if isInputFloat %1,%2,%3
-        mov xmm0,%1 ;var1
-        mov xmm1,1.0
 
-        cmp rcx,0
-        je %%powLoopExit
-
-        %%powLoop:
-        mulsd xmm1,xmm0
-
-        dec rcx
-        jnz %%powLoop
-        %%powLoopExit:
-        mov %3,xmm1
+    %if isInputFloat(%1,%2,%3)
+        powF %1,%2,%3
     %else
+        mov rcx,%2 ; times
         mov rax,%1 ; var1
         mov rdx,1
 
