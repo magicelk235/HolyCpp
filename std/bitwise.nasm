@@ -123,23 +123,23 @@
 
     %if size(%3) == 1
         mov al,%1
-        lxd %2,cl
-        sal al,__1
+        mov cl,%2
+        sal al,cl
         mov %3,al
     %elif size(%3) == 2
         mov ax,%1
-        lxd %2,cl
-        sal ax,__1
+        mov cl,%2
+        sal ax,cl
         mov %3,ax
     %elif size(%3) == 4
         mov eax,%1
-        lxd %2,cl
-        sal eax,__1
+        mov cl,%2
+        sal eax,cl
         mov %3,eax
     %else
         mov rax,%1
-        lxd %2,cl
-        sal rax,__1
+        mov cl,%2
+        sal rax,cl
         mov %3,rax
     %endif
 %endmacro
@@ -153,23 +153,23 @@
 
     %if size(%3) == 1
         mov al,%1
-        lxd %2,cl
-        sar al,__1
+        mov cl,%2
+        sar al,cl
         mov %3,al
     %elif size(%3) == 2
         mov ax,%1
-        lxd %2,cl
-        sar ax,__1
+        mov cl,%2
+        sar ax,cl
         mov %3,ax
     %elif size(%3) == 4
         mov eax,%1
-        lxd %2,cl
-        sar eax,__1
+        mov cl,%2
+        sar eax,cl
         mov %3,eax
     %else
         mov rax,%1
-        lxd %2,cl
-        sar rax,__1
+        mov cl,%2
+        sar rax,cl
         mov %3,rax
     %endif
 %endmacro

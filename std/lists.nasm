@@ -53,6 +53,17 @@
 
     %xdefine %%list __1
     
+    %if isEmpty(%%list)
+        %assign %$__0 0
+        %exitmacro
+    %endif
+
+    findInToken %%list,:
+    %if __1 == -1   
+        retm s:,%%list
+        %exitmacro
+    %endif
+
     %rep 100000
         findInToken %%list,:
         %if __1 == -1
