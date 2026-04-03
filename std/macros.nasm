@@ -117,6 +117,7 @@
     %assign %%count 0
     %assign %%loopTimes (%%lenStr1-%%lenStr2)+1
     %if %%loopTimes<=0
+        retm 0
         %exitmacro
     %endif
 
@@ -156,7 +157,7 @@
 %define emptyToken @@EMPTY@@
 %define isEmpty(token) (%isidn(token,emptyToken)||%isidn(token,"")||%isidn(token,"@@EMPTY@@"))
 %define isTokenFloat(x) %eval(!%isnum(0%+x)&&!%isid(x))
-%define isTokenNum(x) %eval(%isnum(x)||isTokenFloat(x))
+%define isTokenNum(x) %eval(%isnum(x)||isTokenFloat(x)||%isstr(x))
 %define numType(x) isTokenFloat(x)
 
 %macro tokenLen 1
@@ -189,6 +190,8 @@
 %macro TokenToNum 1
     %if isTokenFloat(%1)
         retm %eval(__float64__(%1)),1
+    %elifnum %1
+        retm %1,0
     %else
         retm %1,0
     %endif
@@ -208,7 +211,7 @@
     %if %0==4
         %xdefine %%replaceTimes %4
     %else
-        %define %%replaceTimes 10000
+        %define %%replaceTimes 100000
     %endif
 
     tokenLen %2
@@ -346,11 +349,6 @@
         %exitmacro
     %endif
 
-    %ifidn %1,@
-        retm 1
-        %exitmacro
-    %endif
-
     %ifidn %1,|
         retm 1
         %exitmacro
@@ -442,7 +440,7 @@
     toStr %2
     %xdefine %%str2 __1
 
-    ; !!!name -> 3, !name -> 1
+    ; !!!name -> 2, !name -> 0
     %assign %%streak 0
 
     %strlen %%lenStr1 %%str1
@@ -456,7 +454,6 @@
     %rep %%loopTimes
         %substr %%sub %%str1 %%i,%%lenStr2
         %ifidni %%sub,%%str2
-            %assign %%streak %%streak+1
             ; checks if after the operator theres an operand and not operator
             %substr %%after %%str1 %%i+%%lenStr2,1
             %deftok %%after %%after
@@ -477,6 +474,7 @@
                     %endif
                 %endif
             %endif
+            %assign %%streak %%streak+1
         %else
             %assign %%streak 0
         %endif
@@ -503,10 +501,7 @@
     %rep %%loopTimes
         %substr %%sub %%str1 %%i,%%lenStr2
         %ifidni %%sub,%%str2
-            %if %%i==1
-                retm %eval(%%i-1)
-                %exitrep
-            %else
+            %if %%i!=1
                 %substr %%before %%str1 %%i-1,1
                 %deftok %%before %%before
                 isOperator %%before
@@ -526,6 +521,59 @@
     %endrep
 %endmacro
 
+%macro countProcCallsOuts 1
+    %assign %%count 0
+    %define %%expression %1
+    %rep 100000
+        findInToken %%expression,(
+        %if __1 == -1
+            %exitrep
+        %endif
+
+        %assign %%index __1
+        subToken %%expression,%eval(%%index-1),%%index
+        %xdefine %%before __1
+        isOperator __1
+        %if !(__1||isEmpty(%%before))
+            getLOperand %%expression,%%index,1
+            %assign %%count %%count+outs(__1)
+        %endif
+
+        subToken %%expression,%eval(%%index+1)
+        %xdefine %%expression __1
+    %endrep    
+    retm %%count
+%endmacro
+
+%macro countProcCalls 1
+    %assign %%count 0
+    %define %%expression %1
+    %rep 100000
+        findInToken %%expression,(
+        %if __1 == -1
+            %exitrep
+        %endif
+
+        %assign %%index __1
+        subToken %%expression,%eval(%%index-1),%%index
+        %xdefine %%before __1
+        isOperator __1
+        %if !(__1||isEmpty(%%before))
+            %assign %%count %%count+1
+        %endif
+
+        subToken %%expression,%eval(%%index+1)
+        %xdefine %%expression __1
+    %endrep    
+    retm %%count
+%endmacro
+
+; containsProcCall(expression)
+%macro containsProcCall 1
+    countProcCalls %1
+    retm %eval(__1!=0)
+%endmacro
+
 ; getOperand(token,operatorIndex,operatorSize)-> rhs,expression,stop
 %macro getROperand 3
     %assign %%size %3
@@ -537,7 +585,7 @@
     %rep 100000
         subToken %1,%eval(%%i-1),%%i
         %xdefine %%rhs __1
-        isOperator %%rhs
+        isSymbol %%rhs
         %if __1
             %assign %%stop %%i-1
             %exitrep
@@ -565,7 +613,7 @@
     %rep 100000
         subToken %1,%%i,%eval(%%i+1)
         %xdefine %%lhs __1
-        isOperator %%lhs
+        isSymbol %%lhs
         %if __1
             %assign %%start %%i+1
             %exitrep
@@ -584,6 +632,29 @@
     %xdefine %%lhs __1
 
     retm %%lhs,%%expression,%%start
+%endmacro
+
+; returns the amount of operators and proc calls outs
+%macro countOperators 1
+    toStr %1
+    %xdefine %%str __1
+    %assign %%count 0
+    %strlen %%len %%str
+
+    %assign %%i 1
+
+    %rep %%len
+        %substr %%sub %%str %%i,1
+        %deftok %%sub %%sub
+        isOperator %%sub
+        %if __1
+            %assign %%count %%count+1
+        %endif
+        %assign %%i %%i+1
+    %endrep
+
+    countProcCallsOuts %1
+    retm %eval(%%count+__1)
 %endmacro
 
 ; checks if a token has operator
@@ -677,7 +748,7 @@
         %xdefine %%operand __1
         %xdefine %%currentExpression __2
         %if %4
-            %assign %%operatorIndex %%operatorIndex-%%streak+1
+            %assign %%operatorIndex %%operatorIndex-%%streak
             subToken %%expression,%%operatorIndex,__3
             %xdefine %%currentExpression __1
         %endif
@@ -777,30 +848,30 @@
             %assign varCount varCount+1
         %endrep
 
-        %xdefine %%outList _TEV %+ %%startVarCount
+        %xdefine %%outArr _TEV %+ %%startVarCount
         %assign %%i %%startVarCount+1
         %rep %%outs-1
-            %xdefine %%outList %%outList %+,%+%[_TEV %+ %%i]
+            %xdefine %%outArr %%outArr %+,%+%[_TEV %+ %%i]
             %assign %%i %%i+1
         %endrep
         
         %push 
-        splitListToTokens %%input
+        splitArrayToTokens %%input
         %assign %%args %$__0
         %if %%args != 0
-            %xdefine %%argList %$__1
+            %xdefine %%argArr %$__1
             %assign %%i 2
             %rep %%args-1
-                %xdefine %%argList %%argList%+,%+ %[%$ %+__ %+ %%i]
+                %xdefine %%argArr %%argArr%+,%+ %[%$ %+__ %+ %%i]
                 %assign %%i %%i+1
             %endrep
         %endif
         %pop 
 
         %if %%args>0
-            call %%procName,%%argList,%%outList
+            callp %%procName,%%argArr,%%outArr
         %else
-            call %%procName,%%outList
+            callp %%procName,%%outArr
         %endif
 
         %if %%outs==1
@@ -821,27 +892,27 @@
     retm %%expression
 %endmacro
 
-%macro eval 2-4
-    %define %%expression %2
-    hasOperator %%expression
-    
-    %if !__1
-        %if %0>2
-            mov %1,%%expression,%{3:-1}
-        %else
-            mov %1,%%expression
-        %endif
+%macro eval 1-2
+    %define %%expression %1
+    countOperators %%expression
+    %if __1==0
+        retm %%expression
         %exitmacro
     %endif
+    %assign allocateTempBp __1*8
 
     clearSpaces %%expression
     %xdefine %%expression __1
 
-    findInToken %%expression,(
-    %if __1 == -1
-        %define tempType tsp
+    %if %0=1
+        containsProcCall %%expression
+        %if __1
+            %define tempType tbp
+        %else
+            %define tempType tsp
+        %endif
     %else
-        %define tempType tbp
+        %define tempType %2
     %endif
 
     %assign varCount 0
@@ -877,19 +948,13 @@
                 evalOperator1Operand %$expression,~,not,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,.**,powF
-                %xdefine %$expression __1
-
                 evalOperator2Operands %$expression,**,pow
                 %xdefine %$expression __1
 
                 evalOperator2Operands %$expression,.*,mulF
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression, * ,mul
-                %xdefine %$expression __1
-
-                evalOperator2Operands %$expression,./,divF
+                evalOperator2Operands %$expression,*,mul
                 %xdefine %$expression __1
 
                 evalOperator2Operands %$expression, / ,div
@@ -898,13 +963,7 @@
                 evalOperator2Operands %$expression, % ,mod
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,.-,subF
-                %xdefine %$expression __1
-
                 evalOperator2Operands %$expression, - ,sub
-                %xdefine %$expression __1
-
-                evalOperator2Operands %$expression,.+,addF
                 %xdefine %$expression __1
 
                 evalOperator2Operands %$expression, + ,add
@@ -914,6 +973,9 @@
                 %xdefine %$expression __1
 
                 evalOperator2Operands %$expression,>>,sar
+                %xdefine %$expression __1
+
+                evalOperator2Operands %$expression, != ,nEq
                 %xdefine %$expression __1
 
                 evalOperator2Operands %$expression, == ,eq
@@ -970,14 +1032,12 @@
     %endrep
     %pop
     
-    %if %0>2
-        mov %1,%%expression,%{3:-1}
-    %else
-        mov %1,%%expression
-        %endif
-    endTemp tempType
+    retm %%expression
 %endmacro
 
+%macro endEval 0
+    endTemp tempType
+%endmacro
 
 %define max(x,y) %eval((x>=y)*(x)+(x<y)*(y))
 %define min(x,y) %eval( (x>=y)*(y)+(x<y)*(x))

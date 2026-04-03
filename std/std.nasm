@@ -1,0 +1,8 @@
+%include "std/macros.nasm"
+%include "std/var.nasm"
+%include "std/proc.nasm"
+%include "std/math.nasm"
+%include "std/ctrl.nasm"
+%include "std/arrays.nasm"
+%include "std/bool.nasm"
+%include "std/bitwise.nasm"

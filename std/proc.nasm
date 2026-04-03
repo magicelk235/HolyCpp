@@ -18,7 +18,7 @@
         ress %2
     %else
         ress %2*%3
-        ress listSizeOffset
+        ress arraySizeOffset
         omov qword [__1],%2*%3
     %endif
 %endmacro
@@ -42,26 +42,31 @@
         %rotate -1
         TokenToNum %1
         %ifnum __1
-            push qword __1
+            %if isNumInSize(__1,4)
+                push qword __1
+            %else
+                mov rax,__1
+                push rax
+            %endif
         %elif isRef(%1)
             %if isDirectRef(%1)
                 %if times(%1)>1
-                    addrOf %1,rax
+                    addrOf %1,rax,"",0
                     %xdefine %%addr __1
                     
                     %assign %%byteSize times(%1)*size(%1)
-                    %assign %%totalByteSize (%%byteSize/8 + (%%byteSize % 8!=0))*8+8
+                    %assign %%totalByteSize align(%%byteSize)+8
                     %assign %%rspOffset %%totalByteSize
-                    %assign %%listOffset 8
+                    %assign %%arrayOffset 8
 
-                    ; mov the lists size
+                    ; mov the arrays size
                     mov [rsp-%%rspOffset],[%%addr],8,8
                     %assign %%rspOffset %%rspOffset-8
                     
 
                     %rep times(%1)
-                        mov [rsp-%%rspOffset],[%%addr+%%listOffset],size(%1),size(%1)
-                        %assign %%listOffset %%listOffset+size(%1)
+                        mov [rsp-%%rspOffset],[%%addr+%%arrayOffset],size(%1),size(%1)
+                        %assign %%arrayOffset %%arrayOffset+size(%1)
                         %assign %%rspOffset %%rspOffset-size(%1)
                     %endrep
                     sub rsp,%%totalByteSize
@@ -73,14 +78,19 @@
                 lxd %1,rbp
                 push qword __1
             %endif
-        %elif size(%1)!=8
-            %assign %%size (size(%1)/8) * 8
-            %assign %%size (size(%1) % 8!=0? 8 : %%size)
-            sub rsp,%%size
-            mov [rsp],%1,8,size(%1)
+        %elif isReg(%1)
+            %if size(%1)!=8
+                %assign %%size (size(%1)/8) * 8
+                %assign %%size (size(%1) % 8!=0? 8 : %%size)
+                sub rsp,%%size
+                mov [rsp],%1,8,size(%1)
+            %else
+                push %1
+            %endif
         %else
-            push %1
+            push qword %1
         %endif
+        
     %endrep
 %endmacro
 
@@ -115,6 +125,7 @@
 
 ; name,out
 %macro newProc 2
+    %xdefine __addr_%1 __proc_%1
     %assign __outs_%1 %2
     %assign __args_%1 0
     %assign __heldSize_%1 0
@@ -143,10 +154,12 @@
     %push 
     %define procName %1
     %define %$blockType "proc"
-    global procName
-    procName:
+    global __proc_%+procName
+    __proc_%+procName:
+    %assign forceMov 1
     push rbp
     mov rbp,rsp
+    %assign forceMov 0
     %if %0 == 2
         newProc procName,%2
     %else
@@ -182,6 +195,8 @@
     retm rbp-tempRbpOffset
 %endmacro
 
+%assign allocateTempBp 4096
+
 %macro startTempBp 0
     %assign tempRbpVariables 0
     %if inProc
@@ -191,11 +206,11 @@
         push rbp
         mov rbp,rsp
     %endif
-    sub rsp,4096
+    sub rsp,allocateTempBp
 %endmacro
 
 %macro endTempBp 0
-    add rsp,4096
+    add rsp,allocateTempBp
     %if !inProc
         pop rbp
     %endif
@@ -231,8 +246,8 @@
 %define align(x) %eval(((x)/8 + (((x) % 8)!=0))*8)
 
 ; smart call, automatically handles pushing args and poping outs
-; call(procName,args,out)
-%macro call 1-*
+; callp(procName,args,out)
+%macro callp 1-*
     %define %%procName %1
     %assign %%outs outs(%%procName)
     %assign %%totalArgs %0-%%outs ; total macros args - outs - procName(1) + argc(1)
@@ -254,8 +269,10 @@
                     %assign %%totalArgsSize %%totalArgsSize+align(size(%1))
                 %endif
             %endif
-        %else
+        %elifnum size(%1)
             %assign %%totalArgsSize %%totalArgsSize+align(size(%1))
+        %else
+            %assign %%totalArgsSize %%totalArgsSize+8
         %endif
         %rotate 1
     %endrep
@@ -279,10 +296,10 @@
         %rotate -1
         push %1
     %endrep
-    ; pushes the byte count of the args
-    push %%totalArgsSize
+    ; pushes the byte count of the args without argc
+    push %eval(%%totalArgsSize-8)
 
-    call %%procName
+    ocall addr(%%procName)
     ; arg1,arg2,arg3,out2,out1,name ->
     ; name,arg1,arg2,arg3,out2,out1
     %rotate -1
@@ -301,8 +318,8 @@
 
 
 ; return's values from a proc
-; retp(out[])
-%macro retp 0-*
+; return(out[])
+%macro return 0-*
 
     %assign %%args args(procName)
     %if %%args<outs(procName)
@@ -310,12 +327,14 @@
     %endif 
     %assign %%args %%args+1
     
-
+    %assign forceMov 1
     %assign %%out 0
     %rep %0
-        eval [rbp+%eval((%%args-%%out)*8)],%1,8,8
+        eval %1
+        mov [rbp+%eval((%%args-%%out)*8)],__1,8
         %assign %%out %%out+1
         %rotate 1
     %endrep
+    %assign forceMov 0
     jmp %[procName]exit
 %endmacro

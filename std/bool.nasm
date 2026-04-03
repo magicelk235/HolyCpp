@@ -41,10 +41,16 @@
     mov %3,al
 %endmacro
 
+%macro nEq 3
+    cmp %1,%2,%3
+    setne al
+    mov %3,al
+%endmacro
+
 ; var,dest
 %macro bnot 2
-    lxd %1,%2
-    cmp __1,false
+    mov rax,%1
+    cmp rax,false
     sete al
     mov %2,al
 %endmacro

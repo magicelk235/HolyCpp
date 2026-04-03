@@ -1,20 +1,20 @@
-%assign listSizeOffset 8
+%assign arraySizeOffset 8
 ; load ref's address
-; lra(ref,ignored,depth)
-%macro lra 2-3
-    %if %0=2
-        %assign %%at 0
-    %else
-        %assign %%at %3
-    %endif
+; lra(ref,ignored,use,depth)
+%macro lra 4
+    %assign %%at %4
     retm 0
     %if isDirectRef(%1)
         %assign %%depth depth(%1)-%%at
         %if %%depth>0
-            resr %2
+            %if isReg(%3)
+                %xdefine r reg(8,%[group(%3)])
+            %else
+                resr %2
+            %endif
             omov r,[addr(%1)]
             %rep %%depth-1
-                omov r,[r]
+                omov qword r,[r]
             %endrep
             retm r
         %else
@@ -23,26 +23,27 @@
     %endif
 %endmacro
 
-;  a ref or lists address
-; addrOf(ref,ignored,depth)
-%macro addrOf 3
-    lra %1,%2,%3
+;  a ref or arrays address
+; addrOf(ref,ignored,used,depth)
+%macro addrOf 4
+    lra %1,%2,%3,%4
     %ifidn __1,0
         getIndexOffset %1,%2
     %endif
 %endmacro
 
-; ref/list,dest,depth
+; ref/array,dest,depth
 %macro lea 2-3
     %if %0==2
         %assign %%depth 0
     %else
         %assign %%depth %3
     %endif
-
-    addrOf %1,%2,%3
+    addrOf %1,"",%2,%%depth
     %if isReg(%2)
-        lea %2,[__1]
+        %ifnidn %2,__1
+            lea %2,[__1]
+        %endif
     %elif isRef(%2)
         %xdefine %%addr __1
         resr %%addr
@@ -86,10 +87,10 @@
         __global_label_%1 resb %2
         section .text
     %else
-        __global_label_%1 resb listSizeOffset
+        __global_label_%1 resb arraySizeOffset
         resb %3*%2
         section .text
-        omov qword [__global_label_%1],%3
+        omov qword [__global_label_%1],%3*%2
     %endif
     retm __global_label_%1
 %endmacro
@@ -113,12 +114,55 @@
             __global_label_%1 dq %5
         %endif
     %else
-        __global_label_%1 dq %3*%2
         %ifstr %5
-            db %5,0
+            tokenCount %5,"\"
+            %if __1!=0
+                %assign %%len %3*%2-__1
+                tokenCount %5,"\\"
+                __global_label_%1 dq %eval(%%len+__1)
+                %strlen %%len %5
+                %assign %%special 0
+                %assign %%i 1
+                %rep %%len
+                    %substr %%char %5 %%i
+                    %if %%special
+                        %if %%char == "n"
+                            db 10
+                        %elif %%char == "a"
+                            db 7
+                        %elif %%char == "b"
+                            db 8
+                        %elif %%char == "v"
+                            db 11
+                        %elif %%char == "f"
+                            db 12
+                        %elif %%char == "r"
+                            db 13
+                        %elif %%char == "\"
+                            db 92
+                        %elif %%char == "0"
+                            db 0
+                        %endif
+                        %assign %%special 0
+                    %else
+                        %if %%char == "\"
+                            %assign %%special 1
+                        %else
+                            db %%char                    
+                        %endif
+                    %endif
+                    %assign %%i %%i+1
+                %endrep
+    
+            %else
+                __global_label_%1 dq %3*%2
+                db %5
+            %endif
+            db 0
         %else
+            __global_label_%1 dq %3*%2
             %push
-            splitListToTokens %5
+            splitArrayToTokens %5
             %assign %%i 1
             %rep %$__0
                 %if %2==1
@@ -143,12 +187,17 @@
 ; new(name)
 %macro new 1-*
     %rep %0
-        ; pointer depth searches for @
-        tokenCount %1,@
-        %assign %%depth __1
 
-        replaceToken %1,@,""
-        %xdefine %%name __1
+        %define %%name %1
+        findInToken %%name,=
+        %assign %%startData %eval(__1!=-1)
+        %if %%startData
+            %assign %%startDataIndex __1+1
+            subToken %%name,%%startDataIndex
+            %xdefine %%data __1
+            subToken %%name,0,%eval(%%startDataIndex-1)
+            %xdefine %%name __1
+        %endif
 
         ; size search for "local,global.."
         findInToken %%name,"global "
@@ -185,7 +234,7 @@
         %if __1 != -1
             replaceToken %%name,"arg ",""
             %xdefine %%name __1
-            %define %%scope "arg"
+            %define %%scope "a"
         %elif inProc
             %define %%scope "l"
         %else
@@ -197,16 +246,12 @@
         %endif
         %endif
 
-        ; qword x->
-        findInToken %%name,=
-        %assign %%startData %eval(__1!=-1)
-        %if %%startData
-            %assign %%startDataIndex __1+1
-            subToken %%name,%%startDataIndex
-            %xdefine %%data __1
-            subToken %%name,0,%eval(%%startDataIndex-1)
-            %xdefine %%name __1
-        %endif
+        ; pointer depth searches for @
+        tokenCount %%name,@
+        %assign %%depth __1
+
+        replaceToken %%name,@,""
+        %xdefine %%name __1
     
         ; size search for "byte,word.."
         %assign %%size 1
@@ -247,13 +292,23 @@
         %endif
 
 
-        ; search for [] if is an list
+        ; search for [] if is an array
         findPare %%name,[,]
         %if __1 != -1
             %assign %%startIndex __1
             %assign %%stopIndex __2
             subToken %%name,%eval(%%startIndex+1),%%stopIndex
-            %assign %%times __1
+
+            %if isEmpty(__1)
+                %ifstr %%data
+                    %strlen %%times %%data
+                %else
+                    tokenCount %%data,:
+                    %assign %%times __1+1
+                %endif
+            %else
+                %assign %%times __1
+            %endif
             subToken %%name,%%startIndex,-1
             replaceToken %%name,__1,""
             %xdefine %%name __1
@@ -295,7 +350,9 @@
     subToken %1,0,%%startDataIndex
     %xdefine %%name __1
     subToken %1,%eval(%%startDataIndex+1)
-    eval %%name,__1
+    eval __1
+    mov %%name,__1
+    endEval
 %endmacro
 
 ; gets if a ref is a float
@@ -596,10 +653,6 @@
     %define __group_esp 23
     %define __group_rsp 23
 
-    %define __group_ip 24
-    %define __group_eip 24
-    %define __group_rip 24
-
 %define isXmmReg(reg) %eval(%isidn(size(reg),16))
 
 ; search for [ at start
@@ -710,14 +763,14 @@
         %assign %%at __2
         replaceToken %1,@,""
         %xdefine %%ref __1
-        lra %%ref,%2,%%at
+        lra %%ref,%2,"",%%at
         retm [__1],size(%%ref)
         %exitmacro
     %endif
 
     ; checks for direct ref
     %if isDirectRef(%1)
-        lra %1,%2
+        lra %1,%2,"",0
         retm [__1],size(%1)
         %exitmacro
     %endif
@@ -743,7 +796,7 @@
         %exitmacro
     %endif
 
-    ; checks for lists
+    ; checks for arrays
     %if isTokenIndex(%1)
         getIndexOffset %1,%2
         %exitmacro
@@ -792,12 +845,14 @@
         %xdefine %%ss %%ds
     %endif
 
-    %ifidn %%dest,%%src
-        %exitmacro
-    %elif %isidn(%%dest,oldAutomovDest) && %isidn(%%src,oldAutomovSrc)
-        %exitmacro
-    %elif %isidn(%%src,oldAutomovDest) && %isidn(%%dest,oldAutomovSrc)
-        %exitmacro
+    %if !forceMov
+        %ifidn %%dest,%%src
+            %exitmacro
+        %elif %isidn(%%dest,oldAutomovDest) && %isidn(%%src,oldAutomovSrc)
+            %exitmacro
+        %elif %isidn(%%src,oldAutomovDest) && %isidn(%%dest,oldAutomovSrc)
+            %exitmacro
+        %endif
     %endif
 
     %xdefine oldAutomovDest %%dest
@@ -831,6 +886,7 @@
 %define oldMovDest 0
 %define oldMovSrc 0
 %define inMov 0
+%assign forceMov 0
 
 ;original mov(dest,src)
 %macro omov 2
@@ -848,46 +904,88 @@
         mov %1,%2
         %exitmacro
     %endif
-
-    %ifidn %1,%2
-        %exitmacro
-    %elif %isidn(oldMovDest,%1) && %isidn(oldMovSrc,%2)
-        %exitmacro
-    %elif %isidn(oldMovDest,%2) && %isidn(oldMovSrc,%1)
-        %exitmacro
-    %elifidn addr(%1),addr(%2)
-        %exitmacro
-    %elifidn group(%1),group(%2)
-        %exitmacro
+    %if !forceMov
+        %ifidn %1,%2
+            %exitmacro
+        %elif %isidn(oldMovDest,%1) && %isidn(oldMovSrc,%2)
+            %exitmacro
+        %elif %isidn(oldMovDest,%2) && %isidn(oldMovSrc,%1)
+            %exitmacro
+        %elifidn addr(%1),addr(%2)
+            %exitmacro
+        %elifidn group(%1),group(%2)
+            %exitmacro
+        %endif
     %endif
     %define inMov 1
 
-    %if isRef(%1)&&%isstr(%2)
-        %xdefine %%str %2
-        %strlen %%strlen %%str
-        addrOf %1,rbx,0
-        omov qword [__1],%%strlen
-        %assign __times%+%1 %%strlen
-        %assign %%i 1
-        %rep %%strlen
-            %substr %%char %%str %%i
-            omov byte [__1 + %%i-1 + listSizeOffset],%%char
-            %assign %%i %%i+1
-        %endrep
-        omov byte [__1 + %%i-1 + listSizeOffset],0
+    tokenCount %2,@
+    %if __1 != 0
+        %assign %%depth __1-1
+        replaceToken %2,@,""
+        lea __1,%1,%%depth
         %define inMov 0
         %exitmacro
     %endif
 
-    isTokenList %2
+    %if isRef(%1)&&%isstr(%2)
+        %xdefine %%str %2
+
+        %strlen %%len %%str
+        tokenCount %%str,"\"
+        %assign %%realLen %%len-__1
+        tokenCount %%str,"\\"
+        %assign %%realLen %%realLen+__1
+
+        addrOf %1,rbx,"",0        
+        omov qword [__1],%%realLen
+        %xdefine __times%+%1 %%realLen
+        %assign %%special 0
+        %assign %%i 1
+        %rep %%len
+            %substr %%char %%str %%i
+            %if %%special
+                %if %%char == "n"
+                    omov byte [__1 + %%i-1 + arraySizeOffset],10
+                %elif %%char == "a"
+                    omov byte [__1 + %%i-1 + arraySizeOffset],7
+                %elif %%char == "b"
+                    omov byte [__1 + %%i-1 + arraySizeOffset],8
+                %elif %%char == "v"
+                    omov byte [__1 + %%i-1 + arraySizeOffset],11
+                %elif %%char == "f"
+                    omov byte [__1 + %%i-1 + arraySizeOffset],12
+                %elif %%char == "r"
+                    omov byte [__1 + %%i-1 + arraySizeOffset],13
+                %elif %%char == "\"
+                    omov byte [__1 + %%i-1 + arraySizeOffset],92
+                %elif %%char == "0"
+                    omov byte [__1 + %%i-1 + arraySizeOffset],0
+                %endif
+                %assign %%special 0
+            %else
+                %if %%char == "\"
+                    %assign %%special 1
+                %else
+                    omov byte [__1 + %%i-1 + arraySizeOffset],%%char    
+                %endif
+            %endif
+            %assign %%i %%i+1
+        %endrep
+        omov byte [__1 + %%i-1 + arraySizeOffset],0
+        %define inMov 0
+        %exitmacro
+    %endif
+
+    isTokenArray %2
     %if __1
         %push
-        splitListToTokens %2
-        addrOf %1,rax,0
+        splitArrayToTokens %2
+        addrOf %1,rax,"",0
         %xdefine %%addr __1
         %assign %%i 1
         %rep %$__0
-            doubleMemoryMov [%%addr+size(%1)*(%%i-1)+ listSizeOffset],%$__%[%%i],size(%1)
+            doubleMemoryMov [%%addr+size(%1)*(%%i-1)+ arraySizeOffset],%$__%[%%i],size(%1)
             %assign %%i %%i+1
         %endrep
         %pop

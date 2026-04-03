@@ -1,0 +1,8 @@
+%include "lib/arrays.nasm"
+%include "lib/string.nasm"
+%include "lib/io.nasm"
+%include "lib/math.nasm"
+%include "lib/graphics.nasm"
+%include "lib/mmu.nasm"
+%include "lib/process.nasm"
+%include "lib/socket.nasm"

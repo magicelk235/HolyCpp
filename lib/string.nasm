@@ -1,0 +1,621 @@
+func strToInt(@byte string)>1
+    hold rax,rbx,rcx,rdx,r13,r15,r14
+    mov r15,string[#]
+    mov rbx,@string
+    add rbx,8 ; skip header
+    add rbx,r15 ; get to the last var
+    dec rbx
+
+    mov r14,1
+    
+    xor rcx,rcx ; num
+
+    .loop:
+    xor r13,r13
+    mov r13b,[rbx]
+    cmp r13b,"-"
+    jne .notNeg
+    neg rcx
+    return rcx
+
+    .notNeg:
+    cmp r13b,"+"
+    jne .number
+    return rcx
+
+    .number:
+    sub r13,"0"
+    imul r13,r14
+    add rcx,r13
+
+    imul r14,10
+    dec rbx
+    dec r15
+    jnz .loop
+    return rcx
+end
+
+func intToStr(qword num:@byte string)
+    hold rax,rbx,r14,r15,r12,rcx,rdx,r13
+    mov rbx,@string
+    add rbx,8
+    mov r15,num
+    mov r14,1000000000000000000 ; 10**18
+    mov rcx,19
+    mov r12,0
+    
+
+    cmp r15,0
+    je .zero
+    jg .loop
+
+    mov [rbx],"-",1
+    inc r12
+    neg r15
+    inc rbx
+    jmp .loop
+
+    .zero:
+    mov [rbx-8],1,8
+    mov [rbx],"0",1
+    mov [rbx+1],0,1
+    jmp .exit
+
+    .loop:
+    xor rdx,rdx
+    mov rax,r15
+    idiv r14
+    cmp rax,0
+    je .endloop
+    xor rdx,rdx
+    mov r13,10
+    idiv r13
+    add rdx,"0"
+    mov [rbx],dl
+    inc rbx
+    inc r12
+
+    .endloop:
+    xor rdx,rdx
+    mov rax,r14
+    mov r14,10
+    idiv r14
+    mov r14,rax
+    dec rcx
+    jnz .loop
+    mov [rbx],0,1
+
+    mov rbx,@string
+    mov [rbx],r12
+    .exit:
+end
+
+func boolToStr(byte bool:@byte string)
+    hold rax,rsi,rdi
+    cmp byte [addr(bool)],0
+    je .false
+    mov string,"true"
+    jmp .exit
+    .false:
+    mov string,"false"
+    .exit:
+end
+
+func strToBool(@byte string)>1
+    hold rax,rbx
+    mov rbx,@string
+    add rbx,8
+
+    cmp byte [rbx],"f"
+    je .false
+
+    return 1
+
+    .false:
+    return 0
+end
+
+func strToFloat(@byte string)>1
+    hold rax,rbx,rcx,rdx,r8,r9,xmm0,xmm1,xmm2,xmm3,xmm4
+    mov xmm0,0.1
+    mov xmm1,1.0
+    mov xmm2,10.0
+    xorps xmm3,xmm3
+
+    xor r9,r9 ; sign
+
+    mov rax,[addr(string)]
+    mov rcx,[rax]
+    callp find,rax,".",1,rdx
+
+    ; save the "." index
+    mov rbx,rdx
+
+    ; go to "."
+    add rax,8
+    add rdx,rax
+
+    .loopBefore:
+    dec rdx
+    xor r8,r8
+    mov r8b,[rdx]
+    cmp r8b,"-"
+    jne .notNeg
+    mov r9b,1
+    jmp .after
+    
+    .notNeg:
+    cmp r8b,"+"
+    jne .digit
+    mov r9b,0
+    jmp .after
+
+    .digit:
+    sub r8b,"0"
+    cvtsi2sd xmm4,r8
+    mulsd xmm4,xmm1
+    mulsd xmm1,xmm2
+    addsd xmm3,xmm4
+
+    cmp rdx,rax
+    jne .loopBefore
+    .after:
+
+    mov rdx,rbx
+    add rdx,rax
+    add rax,rcx
+    dec rax
+
+    .loopAfter:
+    inc rdx
+    xor r8,r8
+    mov r8b,[rdx]
+    sub r8b,"0"
+    cvtsi2sd xmm4,r8
+    mulsd xmm4,xmm0
+    divsd xmm0,xmm2
+    addsd xmm3,xmm4
+
+    cmp rdx,rax
+    jne .loopAfter
+
+    sal r9,63
+    mov xmm0,r9
+    xorps xmm3,xmm0
+
+    return xmm3
+end
+
+func floatToStr(.qword float:@byte string)
+    hold rax,rdi,r8,r9,rdx,rcx,rbx,rsi,xmm0,xmm1,xmm2
+    %assign floatDigits 15
+    mov rdi,[addr(string)] ; string ptr
+    add rdi,8 
+    xor r8,r8 ; k
+    new buf[20] = [0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0]
+
+
+    mov rdx,[addr(float)]
+    bt rdx,63
+    jnc .pos
+    omov byte [rdi],"-"
+    inc rdi
+    mov rax,7FFFFFFFFFFFFFFFh
+    and rdx,rax
+    
+    .pos:
+    cmp rdx,__float64__(0.0)
+    jne .notZero
+
+    omov byte [rdi],"0"
+    inc rdi
+    jmp .exit
+
+    .notZero:
+    mov xmm0,rdx ; xmm0 = |num|
+    mov xmm1,10.0 ; const 10.0
+    mov xmm2,1.0 ; const 1.0
+
+    .scaleDown:
+    ucomisd xmm0,xmm1
+    jb .scale
+    divsd xmm0,xmm1
+    inc r8
+    jmp .scaleDown
+
+    .scale:
+    
+    ucomisd xmm0,xmm2
+    jae .digit
+    mulsd xmm0,xmm1
+    dec r8
+    jmp .scale
+
+    .digit:
+    mov rbx,@buf
+    add rbx,8
+    mov rcx,floatDigits
+
+    .digitLoop:
+    cvttsd2si rdx,xmm0
+    cvtsi2sd xmm2,rdx
+    subsd xmm0,xmm2
+    mulsd xmm0,xmm1
+    add rdx,"0"
+    mov [rbx],rdx
+    inc rbx
+
+    dec rcx
+    jnz .digitLoop
+
+    ; rbx = last digit
+    dec rbx
+    mov r9,floatDigits
+    .digitCountLoop:
+    
+    cmp byte [rbx],"0"
+    jne .buildNumber
+    dec r9
+    dec rbx
+    jmp .digitCountLoop
+    
+    .buildNumber: ; r9 = digits,r8 = k
+    mov rsi,@buf
+    add rsi,8
+    cmp r8,0
+    jl .kSmall
+    mov rcx,r8
+    inc rcx ; rcx = k+1
+    cmp rcx,r9
+    jge .KnotBiggerDigits
+
+    rep movsb
+
+    
+    mov [rdi],".",1
+    inc rdi
+    
+    ; writes the rest
+    mov rcx,r9
+    sub rcx,r8
+    dec rcx
+    rep movsb
+
+    jmp .exit
+
+    .KnotBiggerDigits:
+
+    mov rcx,r9
+    rep movsb
+
+    ; rcx = k+1-n
+    mov rcx,r8
+    inc rcx
+    sub rcx,r9
+    mov al,"0"
+    rep stosb
+    
+    omov word [rdi],"0."
+    add rdi,2
+    jmp .exit
+
+
+    .kSmall:
+    omov word [rdi],".0"
+    add rdi,2
+
+    ; -k-1's 0
+    mov rcx,r8
+    inc rcx
+    neg rcx
+    mov al,"0"
+    rep stosb
+
+
+    mov rcx,r9
+    rep movsb
+
+    .exit:
+    
+    mov [rdi],0,1 ; null
+    ; size = startptr - endptr
+    mov rax,[addr(string)]
+    sub rdi,9
+    sub rdi,rax
+    mov [rax],rdi
+end
+
+func foregroundToStr(qword number:@byte string)
+    hold rcx,rsi,rdi
+    new byte buf[10]
+    mov rdi,@string
+    add rdi,8 ; skip header
+    ; write start
+    omov byte [rdi],27 ; esc
+    omov dword [rdi+1],"[38;" ; [38;
+    omov word [rdi+5],"2;" ; 2;
+    add rdi,7
+
+
+    mov rsi,@buf
+    mov rcx,number
+    shr rcx,16
+    and rcx,0ffh
+    callp intToStr,rcx,rsi ; write red
+
+    mov rcx,[rsi] ; load size
+    add rsi,8
+    rep movsb ; copy buf to str
+
+    omov byte [rdi],";"
+    inc rdi
+
+    mov rsi,@buf
+    mov rcx,number
+    shr rcx,8
+    and rcx,0ffh
+    callp intToStr,rcx,rsi ; write green
+    mov rcx,[rsi] ; load size
+    add rsi,8
+    rep movsb ; copy buf to str
+
+    omov byte [rdi],";"
+    inc rdi
+
+    mov rsi,@buf
+    mov rcx,number
+    and rcx,0ffh
+    callp intToStr,rcx,rsi ; write blue
+    mov rcx,[rsi] ; load size
+    add rsi,8
+    rep movsb ; copy buf to str
+
+    omov byte [rdi],"m" ; m at the end
+    inc rdi
+    mov [rdi],0,1
+
+    ; new length by delta
+    mov rsi,@string
+    sub rdi,rsi
+    sub rdi,8
+    mov [rsi],rdi
+end
+
+func backgroundToStr(qword number:@byte string)
+    hold rcx,rsi,rdi
+    new byte buf[10]
+    mov rdi,@string
+    add rdi,8 ; skip header
+    ; write start
+    omov byte [rdi],27 ; esc
+    omov dword [rdi+1],"[48;" ; [48;
+    omov word [rdi+5],"2;" ; 2;
+    add rdi,7
+
+
+    mov rsi,@buf
+    mov rcx,number
+    shr rcx,16
+    and rcx,0ffh
+    callp intToStr,rcx,rsi ; write red
+
+    mov rcx,[rsi] ; load size
+    add rsi,8
+    rep movsb ; copy buf to str
+
+    omov byte [rdi],";"
+    inc rdi
+
+    mov rsi,@buf
+    mov rcx,number
+    shr rcx,8
+    and rcx,0ffh
+    callp intToStr,rcx,rsi ; write green
+    mov rcx,[rsi] ; load size
+    add rsi,8
+    rep movsb ; copy buf to str
+
+    omov byte [rdi],";"
+    inc rdi
+
+    mov rsi,@buf
+    mov rcx,number
+    and rcx,0ffh
+    callp intToStr,rcx,rsi ; write blue
+    mov rcx,[rsi] ; load size
+    add rsi,8
+    rep movsb ; copy buf to str
+
+    omov byte [rdi],"m" ; m at the end
+    inc rdi
+    mov [rdi],0,1
+
+    ; new length by delta
+    mov rsi,@string
+    sub rdi,rsi
+    sub rdi,8
+    mov [rsi],rdi
+end
+
+func sprintf(@byte string:@byte buf)
+    hold @general,r8,r10,r15,r14,r13
+
+    ; rbx = original string
+    mov rbx,@string
+
+    ; rdx = after the last
+    mov rdx,[rbx]
+    ; skip the header
+    add rbx,8
+    add rdx,rbx
+
+    ; rdi = buffer
+    mov rdi,@buf
+    add rdi,8
+    ; r13 = argv
+    mov r13,@argv
+    add r13,24 ; skip argc,string and buf
+    
+
+    ; rsi = formatbuffer
+    new byte formatbuf[32]
+    mov rsi,@formatbuf
+
+    .loop:
+    mov r15b,[rbx]
+    cmp r15b,"%"
+    je .format
+
+    ; normal string
+    .noFormat:
+    mov [rdi],r15b
+    inc rdi
+    jmp .endloop
+
+    .format:
+    cmp byte [rbx+1],"i"
+    jne .notInt
+
+    ; integer
+    mov rax,[r13]
+    callp intToStr,rax,rsi
+
+    ; rcx = buffer len
+    mov rcx,[rsi]
+    add rsi,8
+    rep movsb
+    jmp .formatEnd
+
+    .notInt:
+    cmp byte [rbx+1],"c"
+    jne .notChar
+    mov r15b,[r13]
+    mov [rdi],r15b
+    inc rdi
+    inc rbx
+
+    add r13,8
+    jmp .endloop
+
+    .notChar:
+    cmp byte [rbx+1],"b"
+    jne .notBool
+    mov rax,[r13]
+    callp boolToStr,rax,rsi
+
+    ; rcx = buffer len
+    mov rcx,[rsi]
+    add rsi,8
+    rep movsb
+
+    jmp .formatEnd
+
+    .notBool:
+    cmp byte [rbx+1],"f"
+    jne .notFloat
+    mov rax,[r13]
+    callp floatToStr,rax,rsi
+
+    ; rcx = buffer len
+    mov rcx,[rsi]
+    add rsi,8
+    rep movsb
+    jmp .formatEnd
+
+    .notFloat:
+    cmp byte [rbx+1],"s"
+    jne .notString
+
+    mov rsi,[r13]
+    mov rcx,[rsi]
+    add rsi,8
+    rep movsb
+    jmp .formatEnd
+
+    .notString:
+    cmp byte [rbx+1],"F"
+    jne .notForeground
+
+    mov rax,[r13]
+    callp foregroundToStr,rax,rsi
+
+    ; rcx = buffer len
+    mov rcx,[rsi]
+    add rsi,8
+    rep movsb
+    jmp .formatEnd
+
+    .notForeground:
+    cmp byte [rbx+1],"B"
+    jne .notBackground
+
+    mov rax,[r13]
+    callp backgroundToStr,rax,rsi
+
+    ; rcx = buffer len
+    mov rcx,[rsi]
+    add rsi,8
+    rep movsb
+    jmp .formatEnd
+
+    .notBackground:
+    jmp .noFormat
+
+    .formatEnd:
+    mov rsi,@formatbuf
+    inc rbx
+    add r13,8
+
+
+    .endloop:
+    
+    inc rbx
+    cmp rbx,rdx
+    jne .loop
+
+    ; null at end
+    mov [rdi],0,1
+
+    ; calculate new length by delta
+    mov rdx,[addr(buf)]
+    sub rdi,rdx
+    sub rdi,8
+    mov [rdx],rdi
+end
+
+func sscanf(byte format:@byte buf)>1
+    hold rsi,rax
+    mov rsi,[addr(buf)]
+
+    cmp byte [addr(format)],"s"
+    jne .notString
+    return rsi
+
+    .notString:
+    cmp byte [addr(format)],"i"
+    jne .notInt
+    callp strToInt,rsi,rsi
+    return rsi
+
+    .notInt:
+    cmp byte [addr(format)],"f"
+    jne .notFloat
+    callp strToFloat,rsi,rsi
+    return rsi
+
+    .notFloat:
+    cmp byte [addr(format)],"b"
+    jne .notBool
+    callp strToBool,rsi,rsi
+    return rsi
+
+    .notBool:
+    cmp byte [addr(format)],"c"
+    jne .notChar
+    add rsi,8
+    mov sil,[rsi]
+    return sil
+
+    .notChar:
+    return 0
+end

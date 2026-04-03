@@ -3,12 +3,14 @@
 %endmacro
 
 %macro if 1
-    %push 
+    %push
     setBlockType "if"
     %$ifcheck:
     %assign %$blockCount 0
-    eval rax,%1
-    cmp rax,false
+    eval %1
+    mov r15,__1
+    endEval
+    cmp r15,false
     je %$next%[%$blockCount]
 %endmacro
 
@@ -20,8 +22,10 @@
 
 %macro elif 1
     else
-    eval rax,%1
-    cmp rax,false
+    eval %1
+    mov r15,__1
+    endEval
+    cmp r15,false
     je %$next%[%$blockCount]
 %endmacro 
 
@@ -43,8 +47,10 @@
             %$next%[%$blockCount]:
             jmp %$end
         %elifidn %$blockType,"dowhile"
-            eval rax,%$expression
-            cmp rax,false
+            eval %$expression
+            mov r15,__1
+            endEval
+            cmp r15,false
             jne %$check
         %endif
         %$end:
@@ -57,8 +63,10 @@
     setBlockType "while"
     %assign %$blockCount 0
     %$check:
-    eval rax,%1
-    cmp rax,false
+    eval %1
+    mov r15,__1
+    endEval
+    cmp r15,false
     je %$end
 %endmacro
 
@@ -87,8 +95,9 @@
     findPare %1,(,)
     %assign %%startArgsIndex __1
     %assign %%endIndex __2+1
-    getLOperand %%func,%%startArgsIndex
-    %xdefine %%name __2
+    getLOperand %%func,%%startArgsIndex,1
+    
+    %xdefine %%name __1
     %assign %%startIndex __3
 
     proc %%name,%%outs
@@ -96,7 +105,7 @@
     subToken %%func,%%startArgsIndex,%%endIndex
     %xdefine %%args __1
     %assign %%i 1
-    splitListToTokens %%args
+    splitArrayToTokens %%args
 
     %rep %$__0
         ; build %$__i, scope=arg
@@ -104,5 +113,67 @@
         %assign %%i %%i+1
     %endrep
     %pop
+    %assign __procClean_%[%%name] max((args(%%name) - outs(%%name))*8,0)
+%endmacro
 
+%assign inCall 0
+
+%macro ocall 1
+    %if inCall
+        call %1
+    %else
+        call %1,0
+    %endif
+%endmacro
+
+%macro call 1-2
+    %if %0==2
+        call %1
+        %exitmacro
+    %endif
+    %assign inCall 1
+
+    findInToken %1,(
+    %assign %%argsIndex __1
+    subToken %1,0,%%argsIndex
+    %xdefine %%name __1
+    subToken %1,%%argsIndex
+    %xdefine %%args __1
+    %assign %%useArgs 0
+
+    eval %%args,tbp
+    %push
+    splitArrayToTokens [__1]
+    %if %$__0 != 0
+        %assign %%useArgs 1
+        %xdefine %%arglist %$__1
+        %assign %%i 2
+        %rep %$__0-1
+        %xdefine %%arglist %%arglist%+,%+ %[%$__ %+ %%i]
+            %assign %%i %%i+1
+        %endrep
+    %endif
+    %pop
+    %assign %%useOuts 0
+    %if outs(%%name)>0
+        %assign %%useOuts 1
+        %xdefine %%outslist rax
+        %rep outs(%%name)
+            %xdefine %%outslist %+ , %+ rax
+        %endrep
+    %endif 
+    %if %%useArgs
+        %if %%useOuts
+            callp %%name,%%arglist,%%outsList
+        %else
+            callp %%name,%%arglist
+        %endif
+    %elif %%useOuts
+        callp %%name,%%outsList
+    %else
+        callp %%name
+    %endif
+
+    endEval
+    %assign inCall 0
 %endmacro
