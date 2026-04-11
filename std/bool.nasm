@@ -1,7 +1,7 @@
 %define true 1
 %define false 0
 
-; cmp(var1,var2,dest)
+; cmp(var1,var2,?dest)
 %macro cmp 2-3
     %if %0 == 2
         cmp %1,%2

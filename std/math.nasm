@@ -1,12 +1,9 @@
-%macro addF 3
-    mov xmm0,%1
-    mov xmm1,%2
-    addsd xmm0,xmm1
-    mov %3,xmm0
-%endmacro
-
 ; add(var1,var2,dest)
 %macro add 2-3
+    %ifidn %2,0
+        %exitmacro
+    %endif
+
     %if %0 == 2
         add %1,%2
         %exitmacro
@@ -14,7 +11,10 @@
 
     isInputFloat %1,%2,%3
     %if __1
-        addF %1,%2,%3
+        mov xmm0,%1
+        mov xmm1,%2
+        addsd xmm0,xmm1
+        mov %3,xmm0
     %elif size(%3) == 1
         mov al,%1
         lxd %2,al
@@ -38,15 +38,12 @@
     %endif
 %endmacro
 
-%macro subF 3
-    mov xmm0,%1
-    mov xmm1,%2
-    subsd xmm0,xmm1
-    mov %3,xmm0
-%endmacro
-
 ; subp(var1,var2,dest)
 %macro sub 2-3
+    %ifidn %2,0
+        %exitmacro
+    %endif
+
     %if %0 == 2
         sub %1,%2
         %exitmacro
@@ -54,7 +51,10 @@
 
     isInputFloat %1,%2,%3
     %if __1
-        subF %1,%2,%3
+        mov xmm0,%1
+        mov xmm1,%2
+        subsd xmm0,xmm1
+        mov %3,xmm0
     %elif size(%3) == 1
         mov al,%1
         lxd %2,al
@@ -78,18 +78,14 @@
     %endif
 %endmacro
 
-%macro mulF 3
-    mov xmm0,%1
-    mov xmm1,%2
-    mulsd xmm0,xmm1
-    mov %3,xmm0
-%endmacro
-
 ; mul(var1,var2,dest)
 %macro mul 3
     isInputFloat %1,%2,%3
     %if __1
-        mulF %1,%2,%3
+        mov xmm0,%1
+        mov xmm1,%2
+        mulsd xmm0,xmm1
+        mov %3,xmm0
     %elif size(%3) == 1
         mov al,%1
         lxd %2,al
@@ -113,41 +109,57 @@
     %endif
 %endmacro
 
-%macro divF 3
-    mov xmm0,%1
-    mov xmm1,%2
-    divsd xmm0,xmm1
-    mov %3,xmm0
-%endmacro
-
 ; div(var1,var2,dest)
 %macro div 3
     isInputFloat %1,%2,%3
     %if __1
-        divF %1,%2,%3
+        mov xmm0,%1
+        mov xmm1,%2
+        divsd xmm0,xmm1
+        mov %3,xmm0
     %elif size(%3) == 1
         mov al,%1
         cbw 
         lxd %2,al
-        idiv byte __1
+        %if %isnum(%2)
+            mov bl,%2
+            idiv bl
+        %else
+            idiv byte __1
+        %endif
         mov %3,al
     %elif size(%3) == 2
         mov ax,%1
         cwd
         lxd %2,ax
-        idiv word __1
+        %if %isnum(%2)
+            mov bx,%2
+            idiv bx
+        %else
+            idiv word __1
+        %endif
         mov %3,ax
     %elif size(%3)==4
         mov eax,%1
         cdq
         lxd %2,eax
-        idiv dword __1
+        %if %isnum(%2)
+            mov ebx,%2
+            idiv ebx
+        %else
+            idiv dword __1
+        %endif
         mov %3,eax
     %else
         mov rax,%1
         cqo
         lxd %2,rax
-        idiv qword __1
+        %if %isnum(%2)
+            mov rbx,%2
+            idiv rbx
+        %else
+            idiv qword __1
+        %endif
         mov %3,rax
     %endif
 %endmacro
@@ -158,7 +170,12 @@
         mov al,%1
         cbw 
         lxd %2,al
-        idiv byte __1
+        %if %isnum(%2)
+            mov bl,%2
+            idiv bl
+        %else
+            idiv byte __1
+        %endif
             
         cmp ah,0
         jge %%byteIsPos
@@ -169,7 +186,12 @@
         mov ax,%1
         cwd
         lxd %2,ax
-        idiv word __1
+        %if %isnum(%2)
+            mov bx,%2
+            idiv bx
+        %else
+            idiv word __1
+        %endif
     
         cmp dx,0
         jge %%wordIsPos
@@ -180,7 +202,12 @@
         mov eax,%1
         cdq
         lxd %2,eax
-        idiv dword __1
+        %if %isnum(%2)
+            mov ebx,%2
+            idiv ebx
+        %else
+            idiv dword __1
+        %endif
             
         cmp edx,0
         jge %%bwordIsPos
@@ -191,7 +218,12 @@
         mov rax,%1
         cqo
         lxd %2,rax
-        idiv qword __1
+        %if %isnum(%2)
+            mov rbx,%2
+            idiv rbx
+        %else
+            idiv qword __1
+        %endif
             
         cmp rdx,0
         jge %%qwordIsPos
@@ -201,31 +233,56 @@
     %endif
 %endmacro
 
-; powF(src1,src2,dest)
-%macro powF 3
-    mov rcx,%2
-    mov xmm0,%1
-    mov xmm1,1.0
+; neg(src,?dest)
+%macro neg 1-2
+    %if %0 == 1
+        neg %1
+        %exitmacro
+    %endif
 
-    cmp rcx,0
-    je %%powFLoopExit
-
-    %%powFLoop:
-    mulsd xmm1,xmm0
-    dec rcx
-    jnz %%powFLoop
-    %%powFLoopExit:
-    mov %3,xmm1
+    isInputFloat %1,%2
+    %if __1
+        mov xmm0,%1
+        pxor xmm1,xmm1
+        subsd xmm1,xmm0
+        mov %2,xmm1
+    %elif size(%2) == 1
+        mov al,%1
+        neg al
+        mov %2,al
+    %elif size(%2) == 2
+        mov ax,%1
+        neg ax
+        mov %2,ax
+    %elif size(%2) == 4
+        mov eax,%1
+        neg eax
+        mov %2,eax
+    %else
+        mov rax,%1
+        neg rax
+        mov %2,rax
+    %endif
 %endmacro
 
 ; pow(var1,var2,dest)
 %macro pow 3
-
+    mov rcx,%2 ; times
     isInputFloat %1,%2,%3
     %if __1
-        powF %1,%2,%3
+        mov xmm0,%1
+        mov xmm1,1.0
+
+        cmp rcx,0
+        je %%powFLoopExit
+
+        %%powFLoop:
+        mulsd xmm1,xmm0
+        dec rcx
+        jnz %%powFLoop
+        %%powFLoopExit:
+        mov %3,xmm1
     %else
-        mov rcx,%2 ; times
         mov rax,%1 ; var1
         mov rdx,1
 

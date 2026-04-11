@@ -12,7 +12,7 @@
 %endmacro
 
 ; generate instructions to calculate the offset of the index at a given index and returns the pointer and the array ref
-; getIndexOffset(array,Token)
+; getIndexOffset(index,Token)
 %macro getIndexOffset 2
 
     splitIndex %1
@@ -46,7 +46,7 @@
     retm %eval(__1!=-1)
 %endmacro
 
-;[1:2:3:4] -> __1 = 1,__2 = 2, __3 = 3....
+;[1:2:3:4] -> %$__1 = 1,%$__2 = 2, %$__3 = 3....
 ; splitArrayToTokens(arrayConst) -> tokensarray
 %macro splitArrayToTokens 1
     subToken %1,1,-2
@@ -60,7 +60,7 @@
 
     findInToken %%array,:
     %if __1 == -1
-        retm s:,%%array
+        retms %%array
         %exitmacro
     %endif
 
@@ -83,5 +83,5 @@
         subToken %%array,%eval(%%index+1),-1
         %xdefine %%array __1
     %endrep
-    retm s:,%%tokensArray
+    retms %%tokensArray
 %endmacro

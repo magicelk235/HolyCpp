@@ -29,6 +29,19 @@
     je %$next%[%$blockCount]
 %endmacro 
 
+%macro loop 1
+    %push
+    setBlockType "loop"
+    %assign %$blockCount 0
+    push r15
+    eval %1
+    mov r15,__1
+    endEval
+    %$check:
+    cmp r15,0
+    je %$end
+%endmacro
+
 %macro break 0
     jmp %$end
 %endmacro
@@ -40,6 +53,11 @@
 %macro end 0
     %ifidn %$blockType,"proc"
         endp
+    %elifidn %$blockType,"loop"
+        jmp %$check
+        %$end:
+        pop r15
+        %pop
     %else
         %ifidn %$blockType,"while"
             jmp %$check
@@ -79,7 +97,6 @@
 %endmacro
 
 %macro func 1
-
     findInToken %1,>
     %if __1 != -1
         %assign %%startOutputIndex __1+1
@@ -113,7 +130,7 @@
         %assign %%i %%i+1
     %endrep
     %pop
-    %assign __procClean_%[%%name] max((args(%%name) - outs(%%name))*8,0)
+    %assign __procClean_%[%%name] max(args(%%name) - outs(%%name),0)
 %endmacro
 
 %assign inCall 0
@@ -141,35 +158,39 @@
     %xdefine %%args __1
     %assign %%useArgs 0
 
-    eval %%args,tbp
-    %push
-    splitArrayToTokens [__1]
-    %if %$__0 != 0
-        %assign %%useArgs 1
-        %xdefine %%arglist %$__1
-        %assign %%i 2
-        %rep %$__0-1
-        %xdefine %%arglist %%arglist%+,%+ %[%$__ %+ %%i]
-            %assign %%i %%i+1
-        %endrep
+    %if !isEmpty(%%args)
+        eval %%args,tbp
+        %push
+        splitArrayToTokens [__1]
+        %if %$__0 != 0
+            %assign %%useArgs 1
+            %xdefine %%arglist %$__1
+            %assign %%i 2
+            %rep %$__0-1
+            %xdefine %%arglist %%arglist%+,%+ %[%$__ %+ %%i]
+                %assign %%i %%i+1
+            %endrep
+        %endif
+        %pop
     %endif
-    %pop
+    
     %assign %%useOuts 0
     %if outs(%%name)>0
         %assign %%useOuts 1
         %xdefine %%outslist rax
-        %rep outs(%%name)
+        %rep outs(%%name)/8 -1
             %xdefine %%outslist %+ , %+ rax
         %endrep
-    %endif 
+    %endif
+    
     %if %%useArgs
         %if %%useOuts
-            callp %%name,%%arglist,%%outsList
+            callp %%name,%%arglist,%%outslist
         %else
             callp %%name,%%arglist
         %endif
     %elif %%useOuts
-        callp %%name,%%outsList
+        callp %%name,%%outslist
     %else
         callp %%name
     %endif

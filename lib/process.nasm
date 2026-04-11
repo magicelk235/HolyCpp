@@ -1,4 +1,4 @@
-func wait(qword pid:byte mode)>1
+func wait(qword pid:byte mode)
     hold rax,rdi,rsi,rdx,r10
     mov rax,61
     mov rdi,pid
@@ -19,29 +19,22 @@ func wait(qword pid:byte mode)>1
     jmp .callwait
 
     .notBlock:
-    cmp byte [addr(mode)],"n"
-    jne .notNonBlock
-    mov rdx,1 ; checks if child running if so rax=0
-    jmp .callwait
-
-    .notNonBlock:
     cmp byte [addr(mode)],"s"
     jne .notStop
     mov rdx,2
     jmp .callwait
 
     .notStop:
-    return -1
+    return
 
     .callwait:
     syscall
-    return rax
 end
 
 func run(@byte path)>1
     hold rax,rbx,rcx,rdx
     new qword exeArgv[255]
-    new qword envp
+    new qword envp = 0
     new dword exitCode
 
     mov rax,57
@@ -51,7 +44,7 @@ func run(@byte path)>1
     je .child
 
     mov rbx,@exitCode
-    callp wait,rax,"b",rbx,rax
+    callp wait,rax,"b",rbx
     mov ebx,[rbx]
     shr rbx,8
     and rbx,0ffh
@@ -59,7 +52,7 @@ func run(@byte path)>1
 
     .child:
     mov rdi,@exeArgv
-    add rdi,8 ; skip the header
+    add rdi,arraySizeOffset ; skip the header
 
     mov rsi,@argv
     add rsi,16 ; skip argc and path
@@ -72,7 +65,7 @@ func run(@byte path)>1
     cmp rcx,0
     je .exitloop
     mov rax,[rsi]
-    add rax,8 ; every ptr skips the header
+    add rax,arraySizeOffset ; every ptr skips the header
     mov [rdi],rax
 
     add rsi,8
@@ -84,10 +77,14 @@ func run(@byte path)>1
 
     mov rax,59 ;exe
     mov rdi,@path
-    add rdi,8 ; skip header
+    add rdi,arraySizeOffset ; skip header
 
     mov rsi,@exeArgv
-    add rsi,8 ; skip header
+    add rsi,arraySizeOffset ; skip header
     mov rdx,@envp
+    syscall
+    ; execve failed - exit so child doesn't continue as a duplicate process
+    mov rax,60
+    mov rdi,1
     syscall
 end

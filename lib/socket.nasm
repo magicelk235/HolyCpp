@@ -53,10 +53,13 @@ func connect(qword socketfd:dword ip:word port)>1
     mov rax,42
     mov rdi,socketfd
     mov rsi,@server
-    add rsi,8
+    add rsi,arraySizeOffset
     mov rdx,16
     syscall
-    return rax
+    cmp rax,0
+    sete al
+    mov rax,al
+    return al
 end
 
 func bind(qword socketfd:word port)>1
@@ -73,10 +76,14 @@ func bind(qword socketfd:word port)>1
     mov rax,49
     mov rdi,socketfd
     mov rsi,@server
-    add rsi,8
+    add rsi,arraySizeOffset
     mov rdx,16
     syscall
-    return rax
+
+    cmp rax,0
+    sete al
+    mov rax,al
+    return al
 end
 
 func listen(qword socketfd:qword backlog)>1
@@ -85,16 +92,142 @@ func listen(qword socketfd:qword backlog)>1
     mov rdi,socketfd
     mov rsi,backlog
     syscall
-    return rax
+
+    cmp rax,0
+    sete al
+    mov rax,al
+    return al
 end
 
-func accept(qword socketfd:@byte client)>1
+func send(qword socketfd: @byte buf: qword count: byte flags)
+    hold rax,rdi,rsi,rdx,r10,r8,r9
+    
+    cmp byte [addr(flags)],"n" ; normal
+    jne .notNormal
+    xor r10,r10
+
+    .notNormal:
+    cmp byte [addr(flags)],"d" ; dontwait
+    jne .notDontWait
+    mov r10,40h ; MSG_DONTWAIT
+    jmp .call
+
+    .notDontWait:
+    return
+
+    .call:
+    cmp qword [addr(count)],-1
+    jne .normalSend
+    mov rdx,@buf
+    mov rdx,[rdx]
+    jmp .dosend
+
+    .normalSend:
+    mov rdx,count
+
+    .dosend:
+    mov rax,44
+    mov rdi,socketfd
+    mov rsi,@buf
+    add rsi,arraySizeOffset
+    xor r8,r8
+    xor r9,r9
+    syscall
+end
+
+func recv(qword socketfd: @byte buf: qword count: byte flags)
+    hold rax,rdi,rsi,rdx,r10,r8,r9
+    
+
+    cmp byte [addr(flags)],"n" ; normal
+    jne .notNormal
+    xor r10,r10
+    jmp .call
+
+    .notNormal:
+    cmp byte [addr(flags)],"d" ; dont wait
+    jne .notDontWait
+    mov r10,40h ; MSG_DONTWAIT
+    jmp .call
+
+    .notDontWait:
+    cmp byte [addr(flags)],"p" ; peek
+    jne .notPeek
+    mov r10,2 ; MSG_PEEK
+    jmp .call
+
+    .notPeek:
+    cmp byte [addr(flags)],"w" ; waitall
+    jne .notWaitAll
+    mov r10,100h ; MSG_WAITALL
+    jmp .call
+
+    .notWaitAll:
+    return
+
+    .call:
+    cmp qword [addr(count)],-1
+    jne .normalRecv
+    mov rdx,@buf
+    mov rdx,[rdx]
+    jmp .dorecv
+
+    .normalRecv:
+    mov rdx,count
+
+    .dorecv:
+    mov rax,45
+    mov rdi,socketfd
+    mov rsi,@buf
+    add rsi,arraySizeOffset
+    xor r8,r8
+    xor r9,r9
+    syscall
+    mov [addr(buf)],rax
+end
+
+func clientIp(qword socketfd)>1
     hold rax,rdi,rsi,rdx
+    new byte client[16]
+    mov rax,52
+    mov rdi,socketfd
+    mov rsi,@client
+    mov rdx,rsi
+    add rsi,arraySizeOffset
+    syscall
+
+    xor rdx,rdx ; making the rdx
+    mov ebx,[rsi+4]
+    mov dh,bl
+    mov dl,bh
+    shl edx,16
+
+    shr ebx,16
+    mov dh,bl
+    mov dl,bh 
+
+    return rdx
+end
+
+func accept(qword socketfd)>1
+    hold rax,rdi,rsi,rdx
+    new byte client[16]
     mov rax,43
     mov rdi,socketfd
     mov rsi,@client
-    mov rdx,[rdi]
-    add rsi,8
+    mov rdx,rsi
+    add rsi,arraySizeOffset
     syscall
     return rax
+end
+
+func disconnect(qword socketfd)>1
+    hold rax,rdi,rsi
+    mov rsi,2 ; SHUT_RDWR
+    mov rax,48
+    mov rdi,socketfd
+    syscall
+    cmp rax,0
+    sete al
+    return al
 end

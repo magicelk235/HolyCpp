@@ -22,9 +22,9 @@ end
 
 func fill(@byte array:qword value:byte size)
     hold rax,rbx,rcx
-    mov rcx,array[#]
     mov rbx,@array
-    add rbx,8
+    mov rcx,[rbx]
+    add rbx,arraySizeOffset
 
     ; loads the value to ax by the size
     cmp byte [addr(size)],1
@@ -74,9 +74,9 @@ end
 
 func count(@byte array:qword value:byte size)>1
     hold rax,rbx,rcx,rdx,r15
-    ;offset array +8 skip header
+    ;offset array +arraySizeOffset skip header
     mov rbx,@array
-    add rbx,8
+    add rbx,arraySizeOffset
     ; array size
     mov rcx,array[#]
     mov r15,0
@@ -141,9 +141,9 @@ end
 
 func find(@byte array:qword value:byte size)>1
     hold rax,rbx,rcx,rdx,r15
-    ;offset array +8 skip header
+    ;offset array +arraySizeOffset skip header
     mov rbx,@array
-    add rbx,8
+    add rbx,arraySizeOffset
     ; array size
     mov rcx,array[#]
     mov r15,0

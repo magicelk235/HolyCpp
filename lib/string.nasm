@@ -1,8 +1,8 @@
-func strToInt(@byte string)>1
+func strToInt(@byte str)>1
     hold rax,rbx,rcx,rdx,r13,r15,r14
-    mov r15,string[#]
-    mov rbx,@string
-    add rbx,8 ; skip header
+    mov rbx,@str
+    mov r15,[rbx]
+    add rbx,arraySizeOffset ; skip header
     add rbx,r15 ; get to the last var
     dec rbx
 
@@ -35,10 +35,10 @@ func strToInt(@byte string)>1
     return rcx
 end
 
-func intToStr(qword num:@byte string)
+func intToStr(qword num:@byte str)
     hold rax,rbx,r14,r15,r12,rcx,rdx,r13
-    mov rbx,@string
-    add rbx,8
+    mov rbx,@str
+    add rbx,arraySizeOffset
     mov r15,num
     mov r14,1000000000000000000 ; 10**18
     mov rcx,19
@@ -85,26 +85,26 @@ func intToStr(qword num:@byte string)
     jnz .loop
     mov [rbx],0,1
 
-    mov rbx,@string
+    mov rbx,@str
     mov [rbx],r12
     .exit:
 end
 
-func boolToStr(byte bool:@byte string)
+func boolToStr(byte bool:@byte str)
     hold rax,rsi,rdi
     cmp byte [addr(bool)],0
     je .false
-    mov string,"true"
+    mov str,"true"
     jmp .exit
     .false:
-    mov string,"false"
+    mov str,"false"
     .exit:
 end
 
-func strToBool(@byte string)>1
+func strToBool(@byte str)>1
     hold rax,rbx
-    mov rbx,@string
-    add rbx,8
+    mov rbx,@str
+    add rbx,arraySizeOffset
 
     cmp byte [rbx],"f"
     je .false
@@ -115,7 +115,7 @@ func strToBool(@byte string)>1
     return 0
 end
 
-func strToFloat(@byte string)>1
+func strToFloat(@byte str)>1
     hold rax,rbx,rcx,rdx,r8,r9,xmm0,xmm1,xmm2,xmm3,xmm4
     mov xmm0,0.1
     mov xmm1,1.0
@@ -124,7 +124,7 @@ func strToFloat(@byte string)>1
 
     xor r9,r9 ; sign
 
-    mov rax,[addr(string)]
+    mov rax,[addr(str)]
     mov rcx,[rax]
     callp find,rax,".",1,rdx
 
@@ -132,7 +132,7 @@ func strToFloat(@byte string)>1
     mov rbx,rdx
 
     ; go to "."
-    add rax,8
+    add rax,arraySizeOffset
     add rdx,rax
 
     .loopBefore:
@@ -186,11 +186,11 @@ func strToFloat(@byte string)>1
     return xmm3
 end
 
-func floatToStr(.qword float:@byte string)
+func floatToStr(.qword float:@byte str)
     hold rax,rdi,r8,r9,rdx,rcx,rbx,rsi,xmm0,xmm1,xmm2
     %assign floatDigits 15
-    mov rdi,[addr(string)] ; string ptr
-    add rdi,8 
+    mov rdi,[addr(str)] ; str ptr
+    add rdi,arraySizeOffset
     xor r8,r8 ; k
     new buf[20] = [0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0]
 
@@ -233,7 +233,7 @@ func floatToStr(.qword float:@byte string)
 
     .digit:
     mov rbx,@buf
-    add rbx,8
+    add rbx,arraySizeOffset
     mov rcx,floatDigits
 
     .digitLoop:
@@ -261,7 +261,7 @@ func floatToStr(.qword float:@byte string)
     
     .buildNumber: ; r9 = digits,r8 = k
     mov rsi,@buf
-    add rsi,8
+    add rsi,arraySizeOffset
     cmp r8,0
     jl .kSmall
     mov rcx,r8
@@ -319,17 +319,17 @@ func floatToStr(.qword float:@byte string)
     
     mov [rdi],0,1 ; null
     ; size = startptr - endptr
-    mov rax,[addr(string)]
+    mov rax,[addr(str)]
     sub rdi,9
     sub rdi,rax
     mov [rax],rdi
 end
 
-func foregroundToStr(qword number:@byte string)
+func foregroundToStr(qword number:@byte str)
     hold rcx,rsi,rdi
     new byte buf[10]
-    mov rdi,@string
-    add rdi,8 ; skip header
+    mov rdi,@str
+    add rdi,arraySizeOffset ; skip header
     ; write start
     omov byte [rdi],27 ; esc
     omov dword [rdi+1],"[38;" ; [38;
@@ -344,7 +344,7 @@ func foregroundToStr(qword number:@byte string)
     callp intToStr,rcx,rsi ; write red
 
     mov rcx,[rsi] ; load size
-    add rsi,8
+    add rsi,arraySizeOffset
     rep movsb ; copy buf to str
 
     omov byte [rdi],";"
@@ -356,7 +356,7 @@ func foregroundToStr(qword number:@byte string)
     and rcx,0ffh
     callp intToStr,rcx,rsi ; write green
     mov rcx,[rsi] ; load size
-    add rsi,8
+    add rsi,arraySizeOffset
     rep movsb ; copy buf to str
 
     omov byte [rdi],";"
@@ -367,7 +367,7 @@ func foregroundToStr(qword number:@byte string)
     and rcx,0ffh
     callp intToStr,rcx,rsi ; write blue
     mov rcx,[rsi] ; load size
-    add rsi,8
+    add rsi,arraySizeOffset
     rep movsb ; copy buf to str
 
     omov byte [rdi],"m" ; m at the end
@@ -375,17 +375,17 @@ func foregroundToStr(qword number:@byte string)
     mov [rdi],0,1
 
     ; new length by delta
-    mov rsi,@string
+    mov rsi,@str
     sub rdi,rsi
-    sub rdi,8
+    sub rdi,arraySizeOffset
     mov [rsi],rdi
 end
 
-func backgroundToStr(qword number:@byte string)
+func backgroundToStr(qword number:@byte str)
     hold rcx,rsi,rdi
     new byte buf[10]
-    mov rdi,@string
-    add rdi,8 ; skip header
+    mov rdi,@str
+    add rdi,arraySizeOffset ; skip header
     ; write start
     omov byte [rdi],27 ; esc
     omov dword [rdi+1],"[48;" ; [48;
@@ -400,7 +400,7 @@ func backgroundToStr(qword number:@byte string)
     callp intToStr,rcx,rsi ; write red
 
     mov rcx,[rsi] ; load size
-    add rsi,8
+    add rsi,arraySizeOffset
     rep movsb ; copy buf to str
 
     omov byte [rdi],";"
@@ -412,7 +412,7 @@ func backgroundToStr(qword number:@byte string)
     and rcx,0ffh
     callp intToStr,rcx,rsi ; write green
     mov rcx,[rsi] ; load size
-    add rsi,8
+    add rsi,arraySizeOffset
     rep movsb ; copy buf to str
 
     omov byte [rdi],";"
@@ -423,7 +423,7 @@ func backgroundToStr(qword number:@byte string)
     and rcx,0ffh
     callp intToStr,rcx,rsi ; write blue
     mov rcx,[rsi] ; load size
-    add rsi,8
+    add rsi,arraySizeOffset
     rep movsb ; copy buf to str
 
     omov byte [rdi],"m" ; m at the end
@@ -431,30 +431,30 @@ func backgroundToStr(qword number:@byte string)
     mov [rdi],0,1
 
     ; new length by delta
-    mov rsi,@string
+    mov rsi,@str
     sub rdi,rsi
-    sub rdi,8
+    sub rdi,arraySizeOffset
     mov [rsi],rdi
 end
 
-func sprintf(@byte string:@byte buf)
+func sprintf(@byte str:@byte buf)
     hold @general,r8,r10,r15,r14,r13
 
-    ; rbx = original string
-    mov rbx,@string
+    ; rbx = original str
+    mov rbx,@str
 
     ; rdx = after the last
     mov rdx,[rbx]
     ; skip the header
-    add rbx,8
+    add rbx,arraySizeOffset
     add rdx,rbx
 
     ; rdi = buffer
     mov rdi,@buf
-    add rdi,8
+    add rdi,arraySizeOffset
     ; r13 = argv
     mov r13,@argv
-    add r13,24 ; skip argc,string and buf
+    add r13,24 ; skip argc,str and buf
     
 
     ; rsi = formatbuffer
@@ -466,7 +466,7 @@ func sprintf(@byte string:@byte buf)
     cmp r15b,"%"
     je .format
 
-    ; normal string
+    ; normal str
     .noFormat:
     mov [rdi],r15b
     inc rdi
@@ -482,7 +482,7 @@ func sprintf(@byte string:@byte buf)
 
     ; rcx = buffer len
     mov rcx,[rsi]
-    add rsi,8
+    add rsi,arraySizeOffset
     rep movsb
     jmp .formatEnd
 
@@ -505,7 +505,7 @@ func sprintf(@byte string:@byte buf)
 
     ; rcx = buffer len
     mov rcx,[rsi]
-    add rsi,8
+    add rsi,arraySizeOffset
     rep movsb
 
     jmp .formatEnd
@@ -518,21 +518,21 @@ func sprintf(@byte string:@byte buf)
 
     ; rcx = buffer len
     mov rcx,[rsi]
-    add rsi,8
+    add rsi,arraySizeOffset
     rep movsb
     jmp .formatEnd
 
     .notFloat:
     cmp byte [rbx+1],"s"
-    jne .notString
+    jne .notStr
 
     mov rsi,[r13]
     mov rcx,[rsi]
-    add rsi,8
+    add rsi,arraySizeOffset
     rep movsb
     jmp .formatEnd
 
-    .notString:
+    .notStr:
     cmp byte [rbx+1],"F"
     jne .notForeground
 
@@ -541,7 +541,7 @@ func sprintf(@byte string:@byte buf)
 
     ; rcx = buffer len
     mov rcx,[rsi]
-    add rsi,8
+    add rsi,arraySizeOffset
     rep movsb
     jmp .formatEnd
 
@@ -554,7 +554,7 @@ func sprintf(@byte string:@byte buf)
 
     ; rcx = buffer len
     mov rcx,[rsi]
-    add rsi,8
+    add rsi,arraySizeOffset
     rep movsb
     jmp .formatEnd
 
@@ -588,10 +588,10 @@ func sscanf(byte format:@byte buf)>1
     mov rsi,[addr(buf)]
 
     cmp byte [addr(format)],"s"
-    jne .notString
+    jne .notStr
     return rsi
 
-    .notString:
+    .notStr:
     cmp byte [addr(format)],"i"
     jne .notInt
     callp strToInt,rsi,rsi
@@ -612,8 +612,7 @@ func sscanf(byte format:@byte buf)>1
     .notBool:
     cmp byte [addr(format)],"c"
     jne .notChar
-    add rsi,8
-    mov sil,[rsi]
+    mov sil,[rsi+arraySizeOffset]
     return sil
 
     .notChar:

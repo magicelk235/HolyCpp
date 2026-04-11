@@ -58,7 +58,7 @@ func open(@byte path: qword flags)>1
 
     .opencall:
     mov rdi,@path
-    add rdi,8
+    add rdi,arraySizeOffset
     mov rax,2
     syscall
     return rax
@@ -110,9 +110,9 @@ func read(qword fd: @byte buf: qword count)
     xor rax,rax
     mov rdi,fd
     mov rsi,@buf
-    add rsi,8
+    add rsi,arraySizeOffset
     syscall
-    sub rsi,8
+    sub rsi,arraySizeOffset
     mov [rsi],rax
     add rsi,rax
     omov byte [rsi+8],0
@@ -124,14 +124,14 @@ func write(qword fd: @byte buf:qword count)
     jne .beforeNormalWrite
     mov rdx,buf[#]
     jmp .normalWrite
-    
+
     .beforeNormalWrite:
     mov rdx,count
     .normalWrite:
     mov rax,1
     mov rdi,fd
     mov rsi,@buf
-    add rsi,8
+    add rsi,arraySizeOffset
     syscall
 end
 
@@ -141,10 +141,10 @@ func fstat(qword fd:byte field)>1
     mov rax,5
     mov rdi,fd
     mov rsi,@buf
-    add rsi,8
+    add rsi,arraySizeOffset
     syscall
     mov rsi,@buf
-    add rsi,8
+    add rsi,arraySizeOffset
 
     cmp byte [addr(field)],"s"
     jne .notS
@@ -225,7 +225,7 @@ func ioctl(qword fd:qword request:qword offset:byte size)>1
     mov rdi,fd
     mov rsi,request
     mov rdx,@buf
-    add rdx,8
+    add rdx,arraySizeOffset
     syscall
     add rdx,[addr(offset)]
     
@@ -315,5 +315,3 @@ func scanf(byte format)>1
     callp scan,rdi
     return 0
 end
-
-

@@ -27,11 +27,11 @@
 ; arg(name, size,times,depth)
 %macro arg 4
     %if %4>0
-        %assign __args_%[procName] args(procName)+1
-        retm rbp+%eval(args(procName)*8+8)
+        %assign __args_%[procName] args(procName)+8
+        retm rbp+%eval(args(procName)+8)
     %else
-        %assign __args_%[procName] %eval(args(procName)+(align(%3*%2)/8) + (%3>1))
-        retm rbp+%eval(args(procName)*8+8)
+        %assign __args_%[procName] %eval(args(procName)+align(%3*%2) + (%3>1)*8)
+        retm rbp+%eval(args(procName)+8)
     %endif
 %endmacro
 
@@ -126,7 +126,7 @@
 ; name,out
 %macro newProc 2
     %xdefine __addr_%1 __proc_%1
-    %assign __outs_%1 %2
+    %assign __outs_%1 %2*8
     %assign __args_%1 0
     %assign __heldSize_%1 0
     %define __held_%1 -1
@@ -170,92 +170,24 @@
     newRef argv,8,addr(argc),0,0,1
 %endmacro
 
-; start
-%assign tempRbpOffset 0
-
-; startTemp(type)
-%macro startTemp 1
-    %ifidn %1,tbp
-        startTempBp
-    %else
-        startTempSp
-    %endif
-%endmacro
-
-; endTemp(type)
-%macro endTemp 1
-    %ifidn %1,tbp
-        endTempBp
-    %endif
-%endmacro
-
-; newtbp(name,size,times,depth)
-%macro newtbp 4
-    %assign tempRbpOffset tempRbpOffset+%2*%3
-    retm rbp-tempRbpOffset
-%endmacro
-
-%assign allocateTempBp 4096
-
-%macro startTempBp 0
-    %assign tempRbpVariables 0
-    %if inProc
-        %assign tempRbpOffset locals(procName)+heldSize(procName)
-    %else
-        %assign tempRbpOffset 0
-        push rbp
-        mov rbp,rsp
-    %endif
-    sub rsp,allocateTempBp
-%endmacro
-
-%macro endTempBp 0
-    add rsp,allocateTempBp
-    %if !inProc
-        pop rbp
-    %endif
-%endmacro
-
-%macro startTempSp 0
-    %assign tempSpVariables 0
-%endmacro
-
-; newtsp(name,size,times,depth)
-%macro newtsp 4
-    %assign tempSpVariables tempSpVariables+%2
-    retm rsp-tempSpVariables
-%endmacro
-
-; defines the end of a proc
-; endp
-%macro endp 0
-    %[procName]exit:
-    %if locals(procName)!=0
-        add rsp, locals(procName)
-    %endif
-    %if heldSize(procName)
-        pop held(procName)
-    %endif
-    %assign __procClean_%[procName] max((args(procName) - outs(procName))*8,0)
-    pop rbp
-    ret procClean(procName)
-    %pop
-    %define inProc 0
-%endmacro
-
 %define align(x) %eval(((x)/8 + (((x) % 8)!=0))*8)
 
 ; smart call, automatically handles pushing args and poping outs
 ; callp(procName,args,out)
 %macro callp 1-*
     %define %%procName %1
+    %if !%isnum(outs(%%procName))
+        %error %%procName does not exists
+        %exitmacro
+    %endif
     %assign %%outs outs(%%procName)
-    %assign %%totalArgs %0-%%outs ; total macros args - outs - procName(1) + argc(1)
-    %assign %%givenArgs %%totalArgs-1 
-    %assign %%procArgs args(%%procName)
+    %assign %%outsCount %%outs/8
+    %assign %%totalArgs %0-%%outsCount ; total macros args - outs - procName(1) + argc(1)
+    %assign %%givenArgs %%totalArgs-1
 
-    ; procname,arg1,arg2,out2,out1
+    ; procname,arg1,arg2,out1,out2
     %rotate 1
+    ; arg1,arg2,out1,out2,procname
     %assign %%totalArgsSize 8 ; argc(8)
     %rep %%givenArgs
         %if isRef(%1)
@@ -276,10 +208,13 @@
         %endif
         %rotate 1
     %endrep
-    %rotate %%outs
+    ; out1,out2,procname,arg1,arg2
+
+    %rotate %%outsCount
+    ; procname,arg1,arg2,out1,out2
 
     ; outs - total args
-    %assign %%neededSpace max(%%outs*8-%%totalArgsSize,0) 
+    %assign %%neededSpace max(%%outs+procClean(%%procName)-%%totalArgsSize,0)
 
     ; arg2,arg1,rax,count
 
@@ -287,54 +222,71 @@
     %if %%neededSpace>0
         sub rsp,%%neededSpace
     %endif
-    ; name,arg1,arg2,arg3,out1,out2 ->
-    ; out2,out1,name,arg1,arg2,arg3
+    ; procname,arg1,arg2,out1,out2
     ; pushes in N-1 order
     ; rotates that %N is the last arg
-    %rotate -%%outs
+    %rotate -%%outsCount
+    ; out1,out2,procname,arg1,arg2
     %rep %%givenArgs
         %rotate -1
         push %1
     %endrep
+    ; arg2,out1,out2,procname,arg1
+    ; arg1,arg2,out1,out2,procname
+
     ; pushes the byte count of the args without argc
     push %eval(%%totalArgsSize-8)
 
     ocall addr(%%procName)
-    ; arg1,arg2,arg3,out2,out1,name ->
-    ; name,arg1,arg2,arg3,out2,out1
+    ; arg1,arg2,out1,out2,procname
     %rotate -1
-    %rep %%outs
+    ; procname,arg1,arg2,out1,out2
+    %rep %%outsCount
         %rotate -1
         pop %1
     %endrep
     ; total stack - outs - procClean
-    %assign %%clear max(%%totalArgsSize - %%outs*8,0)-procClean(%%procName)
+    %assign %%clear %%totalArgsSize-%%outs-procClean(%%procName)
     ; if the proc got more data the usual clean it
-    %if %%clear
+    %if %%clear>0
         add rsp,%%clear
     %endif
 
+%endmacro
+
+; defines the end of a proc
+; endp
+%macro endp 0
+    %[procName]exit:
+    %if locals(procName)!=0
+        add rsp, locals(procName)
+    %endif
+    %if heldSize(procName)
+        pop held(procName)
+    %endif
+    %assign __procClean_%[procName] max(args(procName) - outs(procName),0)
+    pop rbp
+    ret procClean(procName)
+    %pop
+    %define inProc 0
 %endmacro
 
 
 ; return's values from a proc
 ; return(out[])
 %macro return 0-*
+    %assign %%args max(args(procName),outs(procName))+8
 
-    %assign %%args args(procName)
-    %if %%args<outs(procName)
-        %assign %%args outs(procName)
-    %endif 
-    %assign %%args %%args+1
     
-    %assign forceMov 1
     %assign %%out 0
     %rep %0
         eval %1
-        mov [rbp+%eval((%%args-%%out)*8)],__1,8
+        %assign forceMov 1
+        mov [rbp+%eval(%%args-%%out*8)],__1,8
+        %assign forceMov 0
+        endEval
         %assign %%out %%out+1
         %rotate 1
     %endrep
-    %assign forceMov 0
     jmp %[procName]exit
 %endmacro
