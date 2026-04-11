@@ -366,7 +366,7 @@
 
     %assign %%loopTimes (%%mainLen-%%pareLen-%%startIndex)+1
     %if %%loopTimes<=0
-        retm -1
+        retm -1,-1
         %exitmacro
     %endif
 

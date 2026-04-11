@@ -33,12 +33,12 @@
     %push
     setBlockType "loop"
     %assign %$blockCount 0
-    push r15
+    push r14
     eval %1
-    mov r15,__1
+    mov r14,__1
     endEval
     %$check:
-    cmp r15,0
+    cmp r14,0
     je %$end
 %endmacro
 
@@ -54,9 +54,10 @@
     %ifidn %$blockType,"proc"
         endp
     %elifidn %$blockType,"loop"
+        dec r14
         jmp %$check
         %$end:
-        pop r15
+        pop r14
         %pop
     %else
         %ifidn %$blockType,"while"

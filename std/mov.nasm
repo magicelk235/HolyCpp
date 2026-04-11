@@ -255,7 +255,7 @@
 
         addrOf %1,rbx,"",0
         omov qword [__1],%%realLen
-        %xdefine __times%+%1 %%realLen
+        %xdefine __times_%+%1 %%realLen
         %assign %%special 0
         %assign %%i 1
         %rep %%len
