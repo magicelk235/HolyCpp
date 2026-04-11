@@ -35,9 +35,38 @@
     %endrep
 %endmacro
 
+%macro isStringOpen 1
+    toStr %1
+    %xdefine %%token __1
+    %ifidn %%token,"'"
+        retm 1,0
+    %elifidn %%token,'"'
+        retm 1,1
+    %else
+        retm 0,0
+    %endif
+%endmacro
+
+%macro isString 1
+    %defstr %%str %1
+    %substr %%sub %%str 1
+    %if !(%isidn(%%sub,"'") || %isidn(%%sub,'"'))
+        retm 0
+        %exitmacro
+    %endif
+    
+    %substr %%sub %%str %strlen(%%str)
+    %if !(%isidn(%%sub,"'") || %isidn(%%sub,'"'))
+        retm 0
+        %exitmacro
+    %endif
+    retm 1
+%endmacro
+
 ; toStr(token)
 %macro toStr 1
-    %ifstr %1
+    isString %1
+    %if __1
         retm %1
     %else
         %defstr %%str %1
@@ -45,31 +74,37 @@
     %endif
 %endmacro
 
+; isPtr(token)
+%macro isPtr 1
+    tokenCount %1,@
+    retm __1>0,__1
+%endmacro
 ; returns values from a macro to __1 ... __N
-; s: -> use stackcontext
+; __0 = count
 ; retm(outs)
 %macro retm 1-*
-
-    
-    %ifidn %1,s:
-        %xdefine %%extend %$__
-        %assign %%stackUsed 1
-    %else
-        %xdefine %%extend __
-        %assign %%stackUsed 0
-    %endif
-
-    
-    %xdefine %[%%extend]0 %eval(%0-%%stackUsed)
+    %xdefine __0 %0
     %assign %%i 1
-    %rotate %%stackUsed
-    %rep %eval(%0-%%stackUsed)
-        %xdefine %%index %%i
-        %xdefine %[%%extend]%[%%i] %1
+    %rep %0
+        %xdefine __%[%%i] %1
         %rotate 1
         %assign %%i %%i+1
     %endrep
 %endmacro
+
+; returns values from a macro to %$__1 ... %$__N
+; %$__0 = count 
+; retm(outs)
+%macro retms 1-*
+    %xdefine %$__0 %0
+    %assign %%i 1
+    %rep %0
+        %xdefine %$__%[%%i] %1
+        %rotate 1
+        %assign %%i %%i+1
+    %endrep
+%endmacro
+
 
 ; findInToken(token1,token2)->index
 %macro findInToken 2
@@ -78,24 +113,57 @@
     toStr %2
     %xdefine %%str2 __1
 
+    %assign %%stringMode 0
+    %assign %%stringType 0
+
     %strlen %%lenStr1 %%str1
     %strlen %%lenStr2 %%str2
-    %define %%sub ''
     %assign %%i 1
     %assign %%loopTimes (%%lenStr1-%%lenStr2)+1
-    retm -1
+    
     %if %%loopTimes<=0
+        retm -1
         %exitmacro
     %endif
 
     %rep %%loopTimes
-        %substr %%sub %%str1 %%i,%%lenStr2
-        %ifidni %%sub,%%str2
-            retm %eval(%%i-1)
-            %exitrep
+        %if !%%stringMode
+            %substr %%sub %%str1 %%i,%%lenStr2
+            %ifidni %%sub,%%str2
+                retm %eval(%%i-1)
+                %exitrep
+            %endif
+        %endif
+        %substr %%sub %%str1 %%i,1
+        isStringOpen %%sub
+        %if __1
+            %if %%stringMode
+                %assign %%stringMode (%%stringType!=__2)
+            %else
+                %assign %%stringMode 1
+                %assign %%stringType __2
+            %endif
         %endif
         %assign %%i %%i+1
+        retm -1
     %endrep
+%endmacro
+
+%macro subString 2-3
+    toStr %1
+    %xdefine %%str __1
+    %if %0=2
+        %assign %%stop -1
+    %elif %3>0
+        %assign %%stop %3-%2
+    %else
+        %assign %%stop %3
+    %endif
+
+    %assign %%start %2+1
+
+    %substr %%str %%str %%start,%%stop
+    retm %%str
 %endmacro
 
 ; tokenCount(token1,token2)->count
@@ -112,6 +180,7 @@
     %assign %%count 0
     %assign %%loopTimes (%%lenStr1-%%lenStr2)+1
     %if %%loopTimes<=0
+        retm 0
         %exitmacro
     %endif
 
@@ -126,19 +195,8 @@
 %endmacro
 ; subToken(token,start,stop?)->subtoken
 %macro subToken 2-3
-    toStr %1
+    subString %{1:-1}
     %xdefine %%str __1
-    %if %0=2
-        %assign %%stop -1
-    %elif %3>0
-        %assign %%stop %3-%2
-    %else
-        %assign %%stop %3
-    %endif
-
-    %assign %%start %2+1
-
-    %substr %%str %%str %%start,%%stop
     %strlen %%len %%str
     %if %%len>0
         %deftok %%str %%str
@@ -149,49 +207,10 @@
 %endmacro
 
 %define emptyToken @@EMPTY@@
-%define isEmpty(token) %isidn(token,emptyToken)
-
-; checks if a token is a float number
-%macro isTokenFloat 1
-    findInToken %1 , .
-    %if __1=-1
-        retm 0
-        %exitmacro
-    %endif
-    %xdefine %%dotIndex __1
-
-    ; checks if x is a number in x.y
-    subToken %1,0,%%dotIndex
-    %ifnum __1
-    %else
-        retm 0
-        %exitmacro
-    %endif
-
-    ; checks if y is a number in x.y
-    subToken %1,%%dotIndex+1
-    %ifnum __1
-    %else
-        retm 0
-        %exitmacro
-    %endif
-
-    retm 1
-%endmacro
-
-; isTokenNum(token)->t/f, type int=0,float=1
-%macro isTokenNum 1
-    %ifnum %1
-        retm 1,0
-    %else
-        isTokenFloat %1
-        %if __1
-            retm 1,1
-        %else
-            retm 0,0
-        %endif
-    %endif    
-%endmacro
+%define isEmpty(token) (%isidn(token,emptyToken)||%isidn(token,"")||%isidn(token,"@@EMPTY@@"))
+%define isTokenFloat(x) %eval(!%isnum(0%+x)&&!%isid(x))
+%define isTokenNum(x) %eval(%isnum(x)||isTokenFloat(x)||%isstr(x))
+%define numType(x) isTokenFloat(x)
 
 %macro tokenLen 1
     toStr %1
@@ -199,33 +218,34 @@
     retm %%len
 %endmacro
 
-; isInputFloat(token...)
-; checks if at least one token is a float const or float ref
 %macro isInputFloat 1-*
-    retm 0
     %rep %0
-        isTokenFloat %1
-        %if __1 == 1
-            retm 1
-            %exitrep
-        %elifidn float(%1),1
+        %if isTokenFloat(%1)
             retm 1
             %exitrep
         %endif
-        %rotate 1
+
+        %if isRef(%1)
+            splitIndex %1
+            %if float(__1)
+                retm 1
+                %exitrep
+            %endif
+        %endif
+        retm 0
+    %rotate 1
     %endrep
 %endmacro
-
-
 
 ; converts a token to a number and return the type(0=int,1=float)
 ;TokenToNum(token)
 %macro TokenToNum 1
-    isTokenNum %1
-    %if __1 == 1 && __2 == 1
-        retm %eval(__float64__(%1)),__2
+    %if isTokenFloat(%1)
+        retm %eval(__float64__(%1)),1
+    %elifnum %1
+        retm %1,0
     %else
-        retm %1,__2
+        retm %1,0
     %endif
 %endmacro
 
@@ -235,7 +255,36 @@
 
 ; clearSpaces(token)->token without spaces
 %macro clearSpaces 1
-    replaceToken %1, " ", ""
+    toStr %1
+    %xdefine %%str __1
+
+    %xdefine %%new ""
+
+    %strlen %%len %%str
+    %define %%sub ''
+    %assign %%i 1
+    %assign %%count 0
+
+    %assign %%stringMode 0
+    %assign %%stringType 0
+
+    %rep %%len
+        %substr %%sub %%str %%i,1
+        isStringOpen %%sub
+        %if __1
+            %if %%stringMode
+                %assign %%stringMode (%%stringType!=__2)
+            %else
+                %assign %%stringMode 1
+                %assign %%stringType __2
+            %endif
+        %endif
+        %if !%isidni(%%sub," ")||%%stringMode
+            %xdefine %%new %strcat(%%new,%%sub)
+        %endif
+        %assign %%i %%i+1
+    %endrep
+    retm %tok(%%new)
 %endmacro
 
 ;replaceToken(original,old,new,times?)
@@ -243,43 +292,37 @@
     %if %0==4
         %xdefine %%replaceTimes %4
     %else
-        %define %%replaceTimes 10000
+        %define %%replaceTimes 100000
     %endif
 
     tokenLen %2
     %assign %%size __1
+    toStr %3
+    %xdefine %%new __1
 
-    %xdefine %%newToken %1
+    %xdefine %%newString %str(%1)
     %rep %%replaceTimes
-    findInToken %%newToken,%2
-    %if __1 == -1
-        %exitrep
-    %endif   
-
-    %assign %%index __1
-    subToken %%newToken,0,%%index
-    %xdefine %%leftPart __1
-    
-
-    subToken %%newToken,%eval(%%index+%%size),-1
-    %xdefine %%rightPart __1
-
-
-
-    
-    %if isEmpty(%%rightPart)
-        %if isEmpty(%%leftPart)
-            %xdefine %%newToken %3
-        %else
-            %xdefine %%newToken %%leftPart%+%3
+        findInToken %%newString,%2
+        %if __1 == -1
+            %exitrep
         %endif
-    %elif isEmpty(%%leftPart)
-        %xdefine %%newToken %3%+%%rightPart
-    %else
-        %xdefine %%newToken %%leftPart%+%3%+%%rightPart
-    %endif
+
+        %assign %%index __1
+        subString %%newString,0,%%index
+        %xdefine %%leftPart __1
+    
+
+        subString %%newString,%eval(%%index+%%size),-1
+        %xdefine %%rightPart __1
+
+        %xdefine %%newString %strcat(%%leftPart,%%new,%%rightPart)
+
     %endrep
-    retm %%newToken
+    %if %strlen(%%newString)==0
+        retm emptyToken
+    %else
+        retm %tok(%%newString)
+    %endif
 %endmacro
 
 %macro sumSize 1-*
@@ -294,6 +337,9 @@
 ; findPare(mainToken,start,stop)
 %macro findPare 3
     findInToken %1,%2
+
+    %assign %%stringMode 0
+    %assign %%stringType 0
 
     %xdefine %%startIndex __1
 
@@ -316,371 +362,39 @@
     
     %strlen %%mainLen %%mainStr
     %strlen %%pareLen %%startStr
-
-    %define %%sub '' 
     %assign %%i %%startIndex+2
 
     %assign %%loopTimes (%%mainLen-%%pareLen-%%startIndex)+1
     %if %%loopTimes<=0
+        retm -1
         %exitmacro
     %endif
 
     %rep %%loopTimes
         %substr %%sub %%mainStr %%i,%%pareLen
-
-        %ifidni %%sub,%%endStr
-            %assign %%count %%count-1
-        %elifidni %%sub,%%startStr
-            %assign %%count %%count+1
-        %endif
-        
-        %if %%count==0
-            retm %%startIndex,%eval(%%i-1)
-            %exitrep
-        %endif
-
-        %assign %%i %%i+1
-    %endrep
-%endmacro
-
-
-; checks if a token is operator
-; isOperator(token)
-%macro isOperator 1
-    %ifidn %1,+
-        retm 1
-        %exitmacro
-    %endif
-
-    %ifidn %1,-
-        retm 1
-        %exitmacro
-    %endif
-
-    %ifidn %1,*
-        retm 1
-        %exitmacro
-    %endif
-
-    %ifidn %1,/
-        retm 1
-        %exitmacro
-    %endif
-
-    %ifidn %1,@
-        retm 1
-        %exitmacro
-    %endif
-
-    %ifidn %1,[
-        retm 1
-        %exitmacro
-    %endif
-
-    %ifidn %1,]
-        retm 1
-        %exitmacro
-    %endif
-
-    %ifidn %1,|
-        retm 1
-        %exitmacro
-    %endif
-
-    %ifidn %1,&
-        retm 1
-        %exitmacro
-    %endif
-
-    %ifidn %1,=
-        retm 1
-        %exitmacro
-    %endif
-
-    %ifidn %1,!
-        retm 1
-        %exitmacro
-    %endif
-
-    %ifidn %1,<
-        retm 1
-        %exitmacro
-    %endif
-
-    %ifidn %1,>
-        retm 1
-        %exitmacro
-    %endif
-
-    %ifidn %1,:
-        retm 1
-        %exitmacro
-    %endif
-
-    retm 0
-%endmacro 
-
-; getOperand(token,operatorIndex,operatorSize)-> lhs,rhs,expression
-%macro getOperand 3
-    %assign %%size %3
-
-    tokenLen %1
-    %assign %%max __1
-
-    %assign %%i %2+%%size+1
-    %rep 100000
-        subToken %1,%eval(%%i-1),%%i
-        %xdefine %%rhs __1
-        isOperator %%rhs
+        isStringOpen %%sub
         %if __1
-            %assign %%stop %%i-1
-            %exitrep
-        %elif %%i==%%max
-            %assign %%stop %%i
-            %exitrep
+            %if %%stringMode
+                %assign %%stringMode (%%stringType!=__2)
+            %else
+                %assign %%stringMode 1
+                %assign %%stringType __2
+            %endif
         %endif
-
-        %assign %%i %%i+1
-    %endrep
-
-    subToken %1,%2,%%stop
-    %xdefine %%expression __1
-
-    subToken %1,%eval(%%size + %2),%%stop
-    %xdefine %%rhs __1
-    retm %%rhs,%%expression
-%endmacro
-
-; get2operands(token,operatorIndex,operatorSize)-> lhs,rhs,expression
-%macro get2operands 3
-    %assign %%size %3 ; 2
-
-
-    tokenLen %1 
-    %assign %%max __1 ; 4
-    %assign %%min 0
-
-    %assign %%i %2-1
-    %rep 100000
-        subToken %1,%%i,%eval(%%i+1)
-        %xdefine %%lhs __1
-        isOperator %%lhs
-        %if __1
-            %assign %%start %%i+1
-            %exitrep
-        %elif %%i==%%min
-            %assign %%start %%i
-            %exitrep
-        %endif
-        %assign %%i %%i-1
-    %endrep
-
-
-    %assign %%i %2+%%size+1
-    %rep 100000
-        subToken %1,%eval(%%i-1),%%i
-        %xdefine %%rhs __1
-        isOperator %%rhs
-        %if __1
-            %assign %%stop %%i-1
-            %exitrep
-        %elif %%i==%%max
-            %assign %%stop %%i
-            %exitrep
-        %endif
-
-        %assign %%i %%i+1
-    %endrep
-
-
-    subToken %1,%%start,%%stop
-    %xdefine %%expression __1
-    
-
-    subToken %1,%%start,%2
-    %xdefine %%lhs __1
-    subToken %1,%eval(%%size + %2),%%stop
-    %xdefine %%rhs __1
-
-
-    retm %%lhs,%%rhs,%%expression
-%endmacro
-
-; evalOperator2Operands(mainToken,operator,operatorMacro)
-%macro evalOperator2Operands 3
-    tokenLen %2
-    %assign %%operatorLen __1
-
-    %xdefine %%expression %1
-
-    %rep 100000
-        findInToken %%expression,%2
-        %if __1 == -1
-            %exitrep
-        %endif
-
-        get2operands %%expression,__1,%%operatorLen
-
-        %xdefine %%operator1 __1
-        %xdefine %%operator2 __2
-        %xdefine %%currentExpression __3
-
-        %xdefine %%varName _TEV_ %+ varCount
+        %if !%%stringMode
+            %ifidni %%sub,%%endStr
+                %assign %%count %%count-1
+            %elifidni %%sub,%%startStr
+                %assign %%count %%count+1
+            %endif
         
-
-        newt %%varName,8
-
-
-        %3 %%operator1,%%operator2,%%varName
-        replaceToken %%expression,%%currentExpression,%%varName
-        %xdefine %%expression __1
-        %assign varCount varCount+1
-    %endrep
-    retm %%expression
-%endmacro
-
-; evalOperator1Operand(mainToken,operator,operatorMacro)
-%macro evalOperator1Operand 3
-    tokenLen %2
-    %assign %%operatorLen __1
-    %xdefine %%expression %1
-    %rep 100000
-        findInToken %%expression,%2
-        %if __1 == -1
-            %exitrep
-        %endif
-
-        getOperand %%expression,__1,%%operatorLen
-
-        %xdefine %%operator1 __1
-        %xdefine %%currentExpression __2
-
-        %xdefine %%varName exptempvar %+ varCount
-        
-        newt %%varName,8
-
-
-        %3 %%operator1,%%varName
-        replaceToken %%expression,%%currentExpression,%%varName
-        %xdefine %%expression __1
-        %assign varCount varCount+1
-    %endrep
-    retm %%expression
-%endmacro
-
-; x-3*(x-4),(,),1
-; expression,openChar,closeChar,replace
-%macro searchGroup 4
-    findPare %1,%2,%3
-
-    %ifidn __1,-1
-        retm -1
-        %exitmacro
-    %endif
-
-    %assign %%startIndex __1+1
-    %assign %%endIndex __2
-
-    subToken %1,%%startIndex,%%endIndex
-    %xdefine %%expression __1
-
-    %if %4
-        subToken %1,%eval(%%startIndex-1),%eval(%%endIndex+1)
-        %define %%original __1
-    %else
-        %define %%original %%expression
-    %endif
-
-    retm %%original,%%expression
-%endmacro
-
-%macro eval 1
-
-    
-    %define %%expression %1
-    %assign varCount 0
-    %assign %%recursiveCount 1
-    startTemp
-
-    %push
-    %xdefine %$expression %%expression
-    %xdefine %$original %%expression
-    %rep 100000
-        searchGroup %$expression,(,),1
-        %ifidn __1,-1
-
-            evalOperator1Operand %$expression,@,lea
-            %xdefine %$expression __1
-
-            evalOperator2Operands %$expression,**,pow
-            %xdefine %$expression __1
-
-            evalOperator2Operands %$expression, * ,mul
-            %xdefine %$expression __1
-
-            evalOperator2Operands %$expression, / ,div
-            %xdefine %$expression __1
-
-            evalOperator2Operands %$expression, % ,mod
-            %xdefine %$expression __1
-    
-            evalOperator2Operands %$expression, - ,sub
-            %xdefine %$expression __1
-
-            evalOperator2Operands %$expression, + ,add
-            %xdefine %$expression __1
-
-            evalOperator2Operands %$expression, == ,eq
-            %xdefine %$expression __1
-
-            evalOperator2Operands %$expression,>,greater
-            %xdefine %$expression __1
-
-            evalOperator2Operands %$expression,<,lower
-            %xdefine %$expression __1
-
-            evalOperator2Operands %$expression,>=,greaterEq
-            %xdefine %$expression __1
-
-            evalOperator2Operands %$expression,<=,lowerEq
-            %xdefine %$expression __1
-
-            evalOperator1Operand %$expression,!,bnot
-            %xdefine %$expression __1
-
-            evalOperator2Operands %$expression,&&,bAnd
-            %xdefine %$expression __1
-
-            evalOperator2Operands %$expression,^^,bXor
-            %xdefine %$expression __1
-
-            evalOperator2Operands %$expression,||,bOr
-            %xdefine %$expression __1
-
-
-            %assign %%recursiveCount %%recursiveCount-1
-            %if %%recursiveCount == 0
-                %xdefine %%expression %$expression    
+            %if %%count==0
+                retm %%startIndex,%eval(%%i-1)
                 %exitrep
             %endif
-
-            %xdefine __1 %$original
-            %xdefine __2 %$expression
-            %pop
-            replaceToken %$expression,__1,__2
-            %xdefine %$expression __1
-
-        %else
-            %push
-            %xdefine %$original __1
-            %xdefine %$expression __2
-            %assign %%recursiveCount %%recursiveCount+1
-        
         %endif
+        %assign %%i %%i+1
     %endrep
-    %pop
-    endTemp
-    retm %%expression
 %endmacro
 
 %define max(x,y) %eval((x>=y)*(x)+(x<y)*(y))

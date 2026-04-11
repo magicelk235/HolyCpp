@@ -1,5 +1,9 @@
 ; add(var1,var2,dest)
 %macro add 2-3
+    %ifidn %2,0
+        %exitmacro
+    %endif
+
     %if %0 == 2
         add %1,%2
         %exitmacro
@@ -33,8 +37,13 @@
         mov %3,rax
     %endif
 %endmacro
+
 ; subp(var1,var2,dest)
 %macro sub 2-3
+    %ifidn %2,0
+        %exitmacro
+    %endif
+
     %if %0 == 2
         sub %1,%2
         %exitmacro
@@ -54,7 +63,7 @@
     %elif size(%3) == 2
         mov ax,%1
         lxd %2,ax
-        add ax,__1
+        sub ax,__1
         mov %3,ax
     %elif size(%3)==4
         mov eax,%1
@@ -112,25 +121,45 @@
         mov al,%1
         cbw 
         lxd %2,al
-        idiv byte __1
+        %if %isnum(%2)
+            mov bl,%2
+            idiv bl
+        %else
+            idiv byte __1
+        %endif
         mov %3,al
     %elif size(%3) == 2
         mov ax,%1
         cwd
         lxd %2,ax
-        idiv word __1
+        %if %isnum(%2)
+            mov bx,%2
+            idiv bx
+        %else
+            idiv word __1
+        %endif
         mov %3,ax
     %elif size(%3)==4
         mov eax,%1
         cdq
         lxd %2,eax
-        idiv dword __1
+        %if %isnum(%2)
+            mov ebx,%2
+            idiv ebx
+        %else
+            idiv dword __1
+        %endif
         mov %3,eax
     %else
         mov rax,%1
         cqo
         lxd %2,rax
-        idiv qword __1
+        %if %isnum(%2)
+            mov rbx,%2
+            idiv rbx
+        %else
+            idiv qword __1
+        %endif
         mov %3,rax
     %endif
 %endmacro
@@ -141,46 +170,98 @@
         mov al,%1
         cbw 
         lxd %2,al
-        idiv byte __1
+        %if %isnum(%2)
+            mov bl,%2
+            idiv bl
+        %else
+            idiv byte __1
+        %endif
             
         cmp ah,0
         jge %%byteIsPos
-        add ah,%1,ah
+        add ah,%2,ah
         %%byteIsPos:
         mov %3,ah
     %elif size(%3) == 2
         mov ax,%1
         cwd
         lxd %2,ax
-        idiv word __1
+        %if %isnum(%2)
+            mov bx,%2
+            idiv bx
+        %else
+            idiv word __1
+        %endif
     
         cmp dx,0
         jge %%wordIsPos
-        add dx,%1,dx
+        add dx,%2,dx
         %%wordIsPos:
         mov %3,dx
     %elif size(%3)==4
         mov eax,%1
         cdq
         lxd %2,eax
-        idiv dword __1
+        %if %isnum(%2)
+            mov ebx,%2
+            idiv ebx
+        %else
+            idiv dword __1
+        %endif
             
         cmp edx,0
         jge %%bwordIsPos
-        add edx,%1,edx
+        add edx,%2,edx
         %%bwordIsPos:
         mov %3,edx
     %else
         mov rax,%1
         cqo
         lxd %2,rax
-        idiv qword __1
+        %if %isnum(%2)
+            mov rbx,%2
+            idiv rbx
+        %else
+            idiv qword __1
+        %endif
             
         cmp rdx,0
         jge %%qwordIsPos
-        add rdx,%1,rdx
+        add rdx,%2,rdx
         %%qwordIsPos:
         mov %3,rdx
+    %endif
+%endmacro
+
+; neg(src,?dest)
+%macro neg 1-2
+    %if %0 == 1
+        neg %1
+        %exitmacro
+    %endif
+
+    isInputFloat %1,%2
+    %if __1
+        mov xmm0,%1
+        pxor xmm1,xmm1
+        subsd xmm1,xmm0
+        mov %2,xmm1
+    %elif size(%2) == 1
+        mov al,%1
+        neg al
+        mov %2,al
+    %elif size(%2) == 2
+        mov ax,%1
+        neg ax
+        mov %2,ax
+    %elif size(%2) == 4
+        mov eax,%1
+        neg eax
+        mov %2,eax
+    %else
+        mov rax,%1
+        neg rax
+        mov %2,rax
     %endif
 %endmacro
 
@@ -189,18 +270,17 @@
     mov rcx,%2 ; times
     isInputFloat %1,%2,%3
     %if __1
-        mov xmm0,%1 ;var1
+        mov xmm0,%1
         mov xmm1,1.0
 
         cmp rcx,0
-        je %%powLoopExit
+        je %%powFLoopExit
 
-        %%powLoop:
+        %%powFLoop:
         mulsd xmm1,xmm0
-
         dec rcx
-        jnz %%powLoop
-        %%powLoopExit:
+        jnz %%powFLoop
+        %%powFLoopExit:
         mov %3,xmm1
     %else
         mov rax,%1 ; var1
