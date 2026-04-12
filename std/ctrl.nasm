@@ -153,7 +153,7 @@
     %if inCall
         call %1
     %else
-        %assign nCall 0
+        %assign nCall 1
         call %1
     %endif
 %endmacro

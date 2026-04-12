@@ -80,6 +80,11 @@
 
 ; mul(var1,var2,dest)
 %macro mul 3
+    %if (%isnum(%2) %2>0 && (%2&(%2-1))==0)
+        sal %1,ilog2(%2),%3 
+        %exitmacro       
+    %endif
+
     isInputFloat %1,%2,%3
     %if __1
         mov xmm0,%1
@@ -111,6 +116,11 @@
 
 ; div(var1,var2,dest)
 %macro div 3
+    %if (%isnum(%2) %2>0 && (%2&(%2-1))==0)
+        sal %1,ilog2(%2),%3     
+        %exitmacro   
+    %endif
+
     isInputFloat %1,%2,%3
     %if __1
         mov xmm0,%1

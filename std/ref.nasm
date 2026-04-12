@@ -19,8 +19,8 @@
     %xdefine __ref_%1 1
 %endmacro
 
-%define depth(x) __depth_%+x
-%define times(x) __times_%+x
+%define depth(name) __depth_ %+ name
+%define times(name) __times_ %+ name
 %define float(name) __float_ %+ name
 %define addr(name) __addr_ %+ name
 %define isRef(x) %isnum(__ref_%+x)
