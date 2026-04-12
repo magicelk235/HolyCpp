@@ -1,9 +1,8 @@
 %include "std/std.nasm"
-%include "lib/lib.nasm"
-; %include "lib/arrays.nasm"
-; %include "lib/string.nasm"
-; %include "lib/io.nasm"
-; %include "lib/process.nasm"
+%include "lib/arrays.nasm"
+%include "lib/string.nasm"
+%include "lib/io.nasm"
+%include "lib/process.nasm"
 section .data
 
 
