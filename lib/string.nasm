@@ -35,7 +35,7 @@ func strToInt(@byte str)>1
     return rcx
 end
 
-func intToStr(qword num:@byte str)
+func intToStr(qword num, @byte str)
     hold rax,rbx,r14,r15,r12,rcx,rdx,r13
     mov rbx,@str
     add rbx,arraySizeOffset
@@ -90,7 +90,7 @@ func intToStr(qword num:@byte str)
     .exit:
 end
 
-func boolToStr(byte bool:@byte str)
+func boolToStr(byte bool, @byte str)
     hold rax,rsi,rdi
     cmp byte [addr(bool)],0
     je .false
@@ -186,7 +186,7 @@ func strToFloat(@byte str)>1
     return xmm3
 end
 
-func floatToStr(.qword float:@byte str)
+func floatToStr(.qword float, @byte str)
     hold rax,rdi,r8,r9,rdx,rcx,rbx,rsi,xmm0,xmm1,xmm2
     %assign floatDigits 15
     mov rdi,[addr(str)] ; str ptr
@@ -325,7 +325,7 @@ func floatToStr(.qword float:@byte str)
     mov [rax],rdi
 end
 
-func foregroundToStr(qword number:@byte str)
+func foregroundToStr(qword number, @byte str)
     hold rcx,rsi,rdi
     new byte buf[10]
     mov rdi,@str
@@ -381,7 +381,7 @@ func foregroundToStr(qword number:@byte str)
     mov [rsi],rdi
 end
 
-func backgroundToStr(qword number:@byte str)
+func backgroundToStr(qword number, @byte str)
     hold rcx,rsi,rdi
     new byte buf[10]
     mov rdi,@str
@@ -437,7 +437,7 @@ func backgroundToStr(qword number:@byte str)
     mov [rsi],rdi
 end
 
-func sprintf(@byte str:@byte buf)
+func sprintf(@byte str, @byte buf)
     hold @general,r8,r10,r15,r14,r13
 
     ; rbx = original str
@@ -583,7 +583,7 @@ func sprintf(@byte str:@byte buf)
     mov [rdx],rdi
 end
 
-func sscanf(byte format:@byte buf)>1
+func sscanf(byte format, @byte buf)>1
     hold rsi,rax
     mov rsi,[addr(buf)]
 

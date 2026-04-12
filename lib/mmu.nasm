@@ -4,7 +4,7 @@ func malloc(qword size)>1
     return rax
 end
 
-func free(@qword ptr:qword size)
+func free(@qword ptr, qword size)
     hold rax,rdi,rsi
     mov rax,11
     mov rdi,@ptr

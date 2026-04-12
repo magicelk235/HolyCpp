@@ -1,4 +1,4 @@
-func wait(qword pid:byte mode)
+func wait(qword pid, byte mode)
     hold rax,rdi,rsi,rdx,r10
     mov rax,61
     mov rdi,pid

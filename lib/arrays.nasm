@@ -1,4 +1,4 @@
-func equal(@byte array1:@byte array2)>1
+func equal(@byte array1,@byte array2)>1
     hold rsi,rdi,rcx
     mov rsi,@array1
     mov rdi,[addr(array1)]
@@ -11,7 +11,7 @@ func equal(@byte array1:@byte array2)>1
     return 0
 end
 
-func copy(@byte dest:@byte src)
+func copy(@byte dest,@byte src)
     hold rsi,rdi,rcx
     mov rsi,[addr(src)]
     mov rdi,[addr(dest)]
@@ -20,7 +20,7 @@ func copy(@byte dest:@byte src)
     rep movsb
 end
 
-func fill(@byte array:qword value:byte size)
+func fill(@byte array,qword value,byte size)
     hold rax,rbx,rcx
     mov rbx,@array
     mov rcx,[rbx]
@@ -72,7 +72,7 @@ func fill(@byte array:qword value:byte size)
     jnz .loop
 end
 
-func count(@byte array:qword value:byte size)>1
+func count(@byte array,qword value,byte size)>1
     hold rax,rbx,rcx,rdx,r15
     ;offset array +arraySizeOffset skip header
     mov rbx,@array
@@ -139,7 +139,7 @@ func count(@byte array:qword value:byte size)>1
     return r15
 end
 
-func find(@byte array:qword value:byte size)>1
+func find(@byte array,qword value,byte size)>1
     hold rax,rbx,rcx,rdx,r15
     ;offset array +arraySizeOffset skip header
     mov rbx,@array
@@ -204,7 +204,7 @@ func find(@byte array:qword value:byte size)>1
     return -1
 end
 
-func contains(@byte array:qword value:byte size)>1
+func contains(@byte array,qword value,byte size)>1
     hold rcx
     callp find,[addr(array)],value,size,rcx
     cmp rcx,-1

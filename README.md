@@ -82,7 +82,7 @@ set ptr = @myVar            ; ptr = address of myVar
 
 ```nasm
 ; declare a function with 2 args and 1 return value
-func add(qword a : qword b)>1
+func add(qword a, qword b)>1
     new qword result
     set result = a+b
     return result
@@ -90,7 +90,7 @@ end
 
 ; call it
 new qword sum
-set sum = add(10 : 20)
+set sum = add(10, 20)
 ```
 
 The `.` prefix on a type marks it as a float argument:
@@ -134,7 +134,7 @@ set x = arr[#]            ; read byte length
 
 Array memory layout: `[8-byte byte length][element0][element1]...`
 
-List literals use `:` as a separator: `[1:2:3:4]`
+List literals use `,` as a separator: `[1,2,3,4]`
 
 ---
 
@@ -190,13 +190,13 @@ func main(@byte args)>1
     new qword x
     set x = scanf("i")
     if x>0
-        call printf("%i is bigger than 0\n":x)
+        call printf("%i is bigger than 0\n",x)
         while x>0
-            call printf("%i\n":x)
+            call printf("%i\n,x)
             set x = x-1
         end
     else
-        call printf("%i is smaller than 0\n":x)
+        call printf("%i is smaller than 0\n",x)
     end
     return 0
 end
@@ -213,19 +213,19 @@ Declare a function with multiple arguments and a return value.
 %include "lib/string.nasm"
 %include "lib/io.nasm"
 
-func sum(qword x:qword y)>1
-    call printf("calculating %i+%i\n":x:y)
-    call printf("the arg count is %i\n":argc)
+func sum(qword x,qword y)>1
+    call printf("calculating %i+%i\n", x, y)
+    call printf("the arg count is %i\n", argc)
     return x+y
 end
 
 func main(@byte args)>1
-    call sum(2:4)
+    call sum(2,4)
     return 0
 end
 ```
 
-The `>1` suffix declares the number of return values. Arguments are separated by `:`.
+The `>1` suffix declares the number of return values. Arguments are separated by `,`.
 
 ---
 
@@ -241,7 +241,7 @@ Prefix a type with `.` to treat it as a float. Here, pi is multiplied by a user-
 func main(@byte args)>1
     new qword x = 3.1415926535
     set x = x * scanf("f")
-    call printf("The result is %f\n":x)
+    call printf("The result is %f\n", x)
     return 0
 end
 ```
@@ -262,7 +262,7 @@ func main(@byte args)>1
     new qword arr[10]
     while x < arr[#]/8
         set arr[x] = scanf("i")
-        call printf("arr[%i] = %i\n":x:arr[x])
+        call printf("arr[%i] = %i\n", x, arr[x])
         set x = x+1
     end
     return 0
@@ -289,7 +289,7 @@ func main(@byte args)>1
 
     set fb = openfb()
     set @image = openbmp("image.bmp")
-    call drawbmp(@fb:@image:1:1)
+    call drawbmp(@fb, @image, 1, 1)
 
     return 0
 end

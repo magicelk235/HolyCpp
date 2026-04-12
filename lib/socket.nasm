@@ -30,7 +30,7 @@ func socket(byte mode)>1
     return rax
 end
 
-func connect(qword socketfd:dword ip:word port)>1
+func connect(qword socketfd, dword ip, word port)>1
     hold rax,rdi,rsi,rdx
     new byte server[16] = [2:0:0:0:0:0:0:0:0:0:0:0:0:0:0]
     mov rax,@server
@@ -62,7 +62,7 @@ func connect(qword socketfd:dword ip:word port)>1
     return al
 end
 
-func bind(qword socketfd:word port)>1
+func bind(qword socketfd, word port)>1
     hold rax,rdi,rsi,rdx
     new byte server[16] = [2:0:0:0:0:0:0:0:0:0:0:0:0:0:0]
     mov rax,@server
@@ -86,7 +86,7 @@ func bind(qword socketfd:word port)>1
     return al
 end
 
-func listen(qword socketfd:qword backlog)>1
+func listen(qword socketfd, qword backlog)>1
     hold rax,rdi,rsi,rdx
     mov rax,50
     mov rdi,socketfd
@@ -99,7 +99,7 @@ func listen(qword socketfd:qword backlog)>1
     return al
 end
 
-func send(qword socketfd: @byte buf: qword count: byte flags)
+func send(qword socketfd, @byte buf, qword count, byte flags)
     hold rax,rdi,rsi,rdx,r10,r8,r9
     
     cmp byte [addr(flags)],"n" ; normal
@@ -135,7 +135,7 @@ func send(qword socketfd: @byte buf: qword count: byte flags)
     syscall
 end
 
-func recv(qword socketfd: @byte buf: qword count: byte flags)
+func recv(qword socketfd, @byte buf, qword count, byte flags)
     hold rax,rdi,rsi,rdx,r10,r8,r9
     
 

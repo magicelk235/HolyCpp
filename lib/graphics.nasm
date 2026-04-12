@@ -34,7 +34,7 @@ func openbmp(@byte path)>1
 end
 
 ; fbPtr+4*(x+y*xres)
-func fbPixelOffset(@qword fb:qword x:qword y)>1
+func fbPixelOffset(@qword fb,qword x,qword y)>1
     hold rax,rbx
     mov rax,@fb
 
@@ -61,7 +61,7 @@ func clearScreen(@qword fb)
     jnz .loop
 end
 
-func drawbmp(@qword fb:@byte bmp:qword x:qword y)
+func drawbmp(@qword fb,@byte bmp,qword x,qword y)
     hold rax,rbx,rcx,rdx,rdi,rsi,r15,r14
     mov rdi,@fb
     callp fbPixelOffset,rdi,x,y,r15 ; r15= fb offset
@@ -95,7 +95,7 @@ func drawbmp(@qword fb:@byte bmp:qword x:qword y)
 end
 
 ; draw a pixel
-func draw(@qword fb:dword color:qword x:qword y)
+func draw(@qword fb,dword color,qword x,qword y)
     hold rax,rbx
     mov rax,@fb
     callp fbPixelOffset,rax,x,y,rax

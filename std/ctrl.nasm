@@ -97,65 +97,89 @@
     %$check:
 %endmacro
 
-%macro func 1
+;func(arg)>111
+;func()>1
+;func(arg1, arg2, arg3)
+
+%macro func 1-*
+    %rotate -1
     findInToken %1,>
     %if __1 != -1
         %assign %%startOutputIndex __1+1
         subToken %1,%%startOutputIndex
         %assign %%outs __1
-        subToken %1,0,%%startOutputIndex
-        %xdefine %%func __1
+        subToken %1,0,%eval(%%startOutputIndex-2)
+        %xdefine %%lastArg __1
     %else
-        %xdefine %%func %1
+        subToken %1,0,-2
+        %xdefine %%lastArg __1
         %assign %%outs 0
     %endif
+    %rotate 1
+    findInToken %%lastArg,"("
+    %if __1!=-1
+        subToken %%lastArg,%eval(__1+1),-1
+        %xdefine %%lastArg __1
+    %endif
 
-    findPare %1,(,)
+    findInToken %1,"("
     %assign %%startArgsIndex __1
-    %assign %%endIndex __2+1
-    getLOperand %%func,%%startArgsIndex,1
-    
+    subToken %1,(%%startArgsIndex+1)
+    %xdefine %%arg1 __1
+    subToken %1,0,(%%startArgsIndex)
     %xdefine %%name __1
-    %assign %%startIndex __3
 
     proc %%name,%%outs
-    %push
-    subToken %%func,%%startArgsIndex,%%endIndex
-    %xdefine %%args __1
-    %assign %%i 1
-    splitArrayToTokens %%args
+    %if %0==1
+        %if !isEmpty(%%lastArg)
+            new arg %%lastArg
+        %endif
+    %else
+        new arg %%arg1
+        %rep %0-2
+            %rotate 1
+            new arg %1
+        %endrep
+        new arg %%lastArg
+    %endif
 
-    %rep %$__0
-        ; build %$__i, scope=arg
-        new arg %[%$__ %+ %%i]
-        %assign %%i %%i+1
-    %endrep
-    %pop
     %assign __procClean_%[%%name] max(args(%%name) - outs(%%name),0)
 %endmacro
 
 %assign inCall 0
+%assign nCall 0
 
 %macro ocall 1
     %if inCall
         call %1
     %else
-        call %1,0
+        %assign nCall 0
+        call %1
     %endif
 %endmacro
 
-%macro call 1-2
-    %if %0==2
+; call(1,2,3,4)
+%macro call 1-*
+    %if nCall
         call %1
+        %assign nCall 0
         %exitmacro
     %endif
+
+    %xdefine %%func %1
+    %rotate 1
+    %rep %0-1
+        %xdefine %%func %%func %+ : %+ %1
+        %rotate 1
+    %endrep
+
     %assign inCall 1
 
-    findInToken %1,(
+    findInToken %%func,(
     %assign %%argsIndex __1
-    subToken %1,0,%%argsIndex
+    subToken %%func,0,%%argsIndex
     %xdefine %%name __1
-    subToken %1,%%argsIndex
+    subToken %%func,%eval(%%argsIndex+1),-2
     %xdefine %%args __1
     %assign %%useArgs 0
 

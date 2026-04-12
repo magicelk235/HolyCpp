@@ -12,7 +12,7 @@ func close(qword fd)
     syscall
 end
 
-func open(@byte path: qword flags)>1
+func open(@byte path, qword flags)>1
     hold rax,rdi,rsi,rdx,rcx
     cmp word [addr(flags)],"r"
     jne .notR
@@ -64,7 +64,7 @@ func open(@byte path: qword flags)>1
     return rax
 end
 
-func read(qword fd: @byte buf: qword count)
+func read(qword fd, @byte buf, qword count)
     hold rax,rdi,rsi,rdx,r15,rcx
     new byte tempBuf[4096]
     cmp qword [addr(count)],-2
@@ -118,7 +118,7 @@ func read(qword fd: @byte buf: qword count)
     omov byte [rsi+8],0
 end
 
-func write(qword fd: @byte buf:qword count)
+func write(qword fd, @byte buf, qword count)
     hold rax,rdi,rsi,rdx
     cmp qword [addr(count)],-1
     jne .beforeNormalWrite
@@ -135,7 +135,7 @@ func write(qword fd: @byte buf:qword count)
     syscall
 end
 
-func fstat(qword fd:byte field)>1
+func fstat(qword fd, byte field)>1
     hold rax,rdi,rsi
     new byte buf[144]
     mov rax,5
@@ -166,7 +166,7 @@ func fstat(qword fd:byte field)>1
     return 0
 end
 
-func mmap(qword fd:byte mode)>1
+func mmap(qword fd, byte mode)>1
     hold rax,rdi,rsi,rdx,r8,r9,r10,rcx
     mov rdi,0
     mov r9,0
@@ -218,7 +218,7 @@ func mmap(qword fd:byte mode)>1
     return rax
 end
 
-func ioctl(qword fd:qword request:qword offset:byte size)>1
+func ioctl(qword fd, qword request, qword offset, byte size)>1
     hold rax,rdi,rsi,rdx
     new byte buf[256]
     mov rax,16
