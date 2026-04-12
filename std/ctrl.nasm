@@ -2,12 +2,19 @@
     %xdefine %$blockType %1
 %endmacro
 
-%macro if 1
+%macro if 1-*
+    %xdefine %%expression %1
+    %rotate 1
+    %rep %0-1
+        %xdefine %%expression %%expression %+ : %+ %1
+        %rotate 1
+    %endrep
+
     %push
     setBlockType "if"
     %$ifcheck:
     %assign %$blockCount 0
-    eval %1
+    eval %%expression
     mov r15,__1
     endEval
     cmp r15,false
@@ -20,21 +27,34 @@
     %assign %$blockCount %$blockCount+1
 %endmacro
 
-%macro elif 1
+%macro elif 1-*
     else
-    eval %1
+    %xdefine %%expression %1
+    %rotate 1
+    %rep %0-1
+        %xdefine %%expression %%expression %+ : %+ %1
+        %rotate 1
+    %endrep
+
+    eval %%expression
     mov r15,__1
     endEval
     cmp r15,false
     je %$next%[%$blockCount]
 %endmacro 
 
-%macro loop 1
+%macro loop 1-*
     %push
+    %xdefine %%expression %1
+    %rotate 1
+    %rep %0-1
+        %xdefine %%expression %%expression %+ : %+ %1
+        %rotate 1
+    %endrep
     setBlockType "loop"
     %assign %$blockCount 0
     push r14
-    eval %1
+    eval %%expression
     mov r14,__1
     endEval
     %$check:
@@ -77,23 +97,35 @@
     %endif
 %endmacro
 
-%macro while 1
+%macro while 1-*
+    %xdefine %%expression %1
+    %rotate 1
+    %rep %0-1
+        %xdefine %%expression %%expression %+ : %+ %1
+        %rotate 1
+    %endrep
     %push
     setBlockType "while"
     %assign %$blockCount 0
     %$check:
-    eval %1
+    eval %%expression
     mov r15,__1
     endEval
     cmp r15,false
     je %$end
 %endmacro
 
-%macro dowhile 1
+%macro dowhile 1-*
+    %xdefine %%expression %1
+    %rotate 1
+    %rep %0-1
+        %xdefine %%expression %%expression %+ : %+ %1
+        %rotate 1
+    %endrep
     %push
     setBlockType "dowhile"
     %assign %$blockCount 0
-    %xdefine %$expression %1
+    %xdefine %$expression %%expression
     %$check:
 %endmacro
 

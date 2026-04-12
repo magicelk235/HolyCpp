@@ -30,13 +30,28 @@ git clone https://github.com/magicelk235/HolyCpp.git
 cd HolyCpp
 ```
 
+Assemble and link it
+
+``````bash
+nasm -f elf64 hcpp.nasm
+ld -o hcpp hcpp.o
+# optional for cli
+nasm -f elf64 cli.nasm
+ld -o cli cli.o
+``````
+
 ## Usage
 
 ### Run the compiler
 
 ```bash
+# direct
 ./hcpp <path>
+# cli
+./cli
 ```
+
+
 
 ### Writing a program
 
@@ -76,7 +91,6 @@ set x = (a + b) * c         ; evaluate expression and assign
 set y = a == b              ; y = 1 if equal, 0 otherwise
 set ptr = @myVar            ; ptr = address of myVar
 ```
-
 
 ### Functions
 
