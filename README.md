@@ -61,8 +61,7 @@ Create a `.hcpp` file. Every program has a `main` function as its entry point:
 %include "lib/lib.nasm"
 
 func main(@byte args)>1
-    new const byte msg[] = "Hello, World!\n"
-    call print(@msg)
+    call print("Hello, World!\n")
     return 0
 end
 ```
