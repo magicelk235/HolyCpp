@@ -655,7 +655,7 @@
             %rep %%outs-1
                 %xdefine %%newExpression %%newExpression %+ : %+ %[_TEV %+ %%i]
                 %assign %%i %%i+1
-            %endrep            
+            %endrep         
             %xdefine %%newExpression %%newExpression%+]
         %endif
         subToken %%expression,%%startIndex,%%endInputIndex
@@ -671,7 +671,7 @@
     %define %%symbol '"'
     %define %%expression %str(%1)
     %rep 2
-        %rep 2
+        %rep 100000
             %assign %%startIndex -1
             %assign %%stopIndex -1
             %assign %%found 0
@@ -719,26 +719,34 @@
     %endrep
     retm %tok(%%expression)
 %endmacro
+; expr,forceTempType,forceeval
+%macro eval 1-3
+    %assign %%forceEval 0
+    %if %0==3
+        %assign %%forceEval %3
+    %endif
 
-%macro eval 1-2
+
     %define tempType tsp
     %define %%expression %1
     isString %%expression
-    %if __1
+    %if __1&&!%%forceEval
         retm %%expression
         %exitmacro
     %endif
-    clearSpaces %%expression
-    %xdefine %%expression __1
+
+    isString %%expression
+    %if !__1
+        clearSpaces %%expression
+        %xdefine %%expression __1
+    %endif
+
     countOperators %%expression
-    %if __1==0
+    %if __1==0&&!%%forceEval
         retm %%expression
         %exitmacro
     %endif
     %assign allocateTempBp __1*8
-
-    clearSpaces %%expression
-    %xdefine %%expression __1
 
     %if %0=1
         containsProcCall %%expression

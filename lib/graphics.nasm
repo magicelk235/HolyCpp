@@ -20,7 +20,6 @@ func openfb()>3
     callp close,r15 ; closes the fb0 after mmap and ioctl
 
     return rax,r14,r13
-
 end
 
 ; opens a bmp image and mmap it

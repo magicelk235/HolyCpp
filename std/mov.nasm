@@ -57,15 +57,15 @@
 %macro lxd 2
 
     lsd %1,%2
-    %ifidn __2,emptyToken
-    %else
+    %ifnidn __2,emptyToken
         retm __1,__2
         %exitmacro
     %endif
 
     ; checks for arrays
     %if isTokenIndex(%1)
-        getIndexOffset %1,%2
+        getIndexOffset %1,%2,0,0
+        retm [__1],__2
         %exitmacro
     %endif
 %endmacro

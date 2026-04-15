@@ -11,31 +11,69 @@
     retm __1,%%index
 %endmacro
 
+%define listPointer(ref) %eval(times(ref)>1&&depth(ref)>0)
+
 ; generate instructions to calculate the offset of the index at a given index and returns the pointer and the array ref
-; getIndexOffset(index,Token)
-%macro getIndexOffset 2
+; getIndexOffset(index,Token,usedReg,depthOffset)
+%macro getIndexOffset 4
 
     splitIndex %1
     %xdefine %%ref __1
     %xdefine %%index __2
 
     %ifidn %%index,#
-        lsd %%ref,%2
-        retm __1,8
-        %exitmacro
+        %if listPointer(%%ref)
+            retm addr(%ref),8
+            %exitmacro
+        %else
+            lra %%ref,%2,"",0
+            retm __1,8
+            %exitmacro
+        %endif
     %endif
 
-    lra %%ref,%%index,"",0
-    %xdefine %%base __1
-
-    %ifnum %%index
-        retm [%%base + %eval(size(%%ref)*%%index + arraySizeOffset)],size(%%ref)
+    %if listPointer(%%ref)
+        %xdefine %%base addr(%%ref)
+        %assign %%size 8
     %else
-        resr %2,%%base
+        lra %%ref,%%index,"",0
+        %xdefine %%base __1
+        %assign %%size size(%%ref)
+    %endif
+        
+    
+    %ifnum %%index
+        %assign %%useR 0
+        %xdefine %%offset %%base+%eval(%%size*%%index+arraySizeOffset)
+    %else
+        %assign %%useR 1
+        %if isReg(%3)
+            %xdefine r reg(8,%[group(%3)])
+        %else
+            resr %2,%%base
+        %endif
         lsd %%index,r
         movSize r,__1,8,__2
-        imul r,size(%%ref)
-        retm [%%base + r + arraySizeOffset],size(%%ref)
+        %xdefine %%offset %%base+%[r]*%%size+arraySizeOffset
+    %endif
+
+    %if depth(%%ref)-%3>0
+        %if %%useR
+            omov r,[%%offset]
+        %else
+            %if isReg(%3)
+                %xdefine r reg(8,%[group(%3)])
+            %else
+                resr %2,%%base
+            %endif
+            omov r,[%%offset]
+        %endif
+        %rep depth(%%ref)-%3-1
+            omov r,[r]
+        %endrep
+        retm r,size(%%ref)
+    %else
+        retm %%offset,size(%%ref)
     %endif
 %endmacro
 

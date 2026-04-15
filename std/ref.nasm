@@ -66,7 +66,7 @@
 %macro addrOf 4
     lra %1,%2,%3,%4
     %ifidn __1,0
-        getIndexOffset %1,%2
+        getIndexOffset %1,%2,%3,%4
     %endif
 %endmacro
 
@@ -97,17 +97,18 @@
 ; newgb(name,size,times,depth)
 %macro newgb 4
     section .bss
+    %assign %%size %2
     %if %4>0
-        __global_label_%1 resq 1
-        section .text
-    %elif %3==1
+        %assign %%size 8
+    %endif
+    %if %3==1
         __global_label_%1 resb %2
         section .text
     %else
         __global_label_%1 resb arraySizeOffset
-        resb %3*%2
+        resb %3*%%size
         section .text
-        omov qword [__global_label_%1],%3*%2
+        omov qword [__global_label_%1],%3*%%size
     %endif
     retm __global_label_%1
 %endmacro
@@ -116,14 +117,16 @@
 ; newgd(name,size,times,depth,data,section)
 %macro newgd 6
     section %6
+    %xdefine %%size %2
     %if %4>0
-        __global_label_%1 dq %5
-    %elif %3==1
-        %if %2==1
+        %define %%size 8
+    %endif
+    %if %3==1
+        %if %%size==1
             __global_label_%1 db %5
-        %elif %2==2
+        %elif %%size==2
             __global_label_%1 dw %5
-        %elif %2==4
+        %elif %%size==4
             __global_label_%1 dd %5
         %else
             __global_label_%1 dq %5
@@ -180,11 +183,11 @@
             splitArrayToTokens %5
             %assign %%i 1
             %rep %$__0
-                %if %2==1
+                %if %%size==1
                     db %[%$__%+%%i]
-                %elif %2==2
+                %elif %%size==2
                     dw %[%$__%+%%i]
-                %elif %2==4
+                %elif %%size==4
                     dd %[%$__%+%%i]
                 %else
                     dq %[%$__%+%%i]
@@ -200,171 +203,192 @@
 
 ; new(name)
 %macro new 1-*
-    %xdefine %%name %1
-    %rotate 1
-        %rep %0-1
-        %xdefine %%name %%name %+ : %+ %1
+
+    %assign %%stackcount 0
+    %assign %%current 0
+    %rep %0
+        %if %%stackcount==0
+            %assign %%current %%current+1
+            %xdefine %%n_%[%%current] %1
+        %else
+            %xdefine %%n_%[%%current] %%n_%[%%current]%+:%+%1
+        %endif
+        findInToken %1,"("
+        %assign %%stackcount %%stackcount+__1
+        findInToken %1,"["
+        %assign %%stackcount %%stackcount+__1
+
+        findInToken %1,"]"
+        %assign %%stackcount %%stackcount-__1   
+        findInToken %1,")"
+        %assign %%stackcount %%stackcount-__1
         %rotate 1
     %endrep
 
-    findInToken %%name,=
-    %assign %%startData %eval(__1!=-1)
-    %if %%startData
-        %assign %%startDataIndex __1+1
-        subToken %%name,%%startDataIndex
-        %xdefine %%data __1
-        subToken %%name,0,%eval(%%startDataIndex-1)
-        %xdefine %%name __1
-    %endif
-
-    ; size search for "local,global.."
-    findInToken %%name,"global "
-    %if __1 != -1
-        replaceToken %%name,"global ",""
-        %xdefine %%name __1
-        %define %%scope "g"
-    %else
-    findInToken %%name,"local "
-    %if __1 != -1
-        replaceToken %%name,"local ",""
-        %xdefine %%name __1
-        %define %%scope "l"
-    %else
-    findInToken %%name,"tbp "
-    %if __1 != -1
-        replaceToken %%name,"tbp ",""
-        %xdefine %%name __1
-        %define %%scope "tbp"
-    %else
-    findInToken %%name,"tsp "
-    %if __1 != -1
-        replaceToken %%name,"tsp ",""
-        %xdefine %%name __1
-        %define %%scope "tsp"
-    %else
-    findInToken %%name,"const "
-    %if __1 != -1
-        replaceToken %%name,"const ",""
-        %xdefine %%name __1
-        %define %%scope "c"
-    %else
-    findInToken %%name,"arg "
-    %if __1 != -1
-        replaceToken %%name,"arg ",""
-        %xdefine %%name __1
-        %define %%scope "a"
-    %elif inProc
-        %define %%scope "l"
-    %else
-        %define %%scope "g"
-    %endif
-    %endif
-    %endif
-    %endif
-    %endif
-    %endif
-
-    ; size search for "byte,word.."
-    %assign %%size 1
-    findInToken %%name,"byte "
-    %if __1 != -1
-        replaceToken %%name,"byte ",""
-        %xdefine %%name __1
-        %assign %%size 1
-    %else
-    findInToken %%name,"qword "
-    %if __1 != -1
-        replaceToken %%name,"qword ",""
-        %xdefine %%name __1
-        %assign %%size 8
-    %else
-    findInToken %%name,"dword "
-    %if __1 != -1
-        replaceToken %%name,"dword ",""
-        %xdefine %%name __1
-        %assign %%size 4
-    %else
-    findInToken %%name,"word "
-    %if __1 != -1
-        replaceToken %%name,"word ",""
-        %xdefine %%name __1
-        %assign %%size 2
-    %endif
-    %endif
-    %endif
-    %endif
-
-    %assign %%float 0
-    findInToken %%name,.
-    %if __1!=-1
-        replaceToken %%name,.,""
-        %xdefine %%name __1
-        %assign %%float 1
-    %endif
-
-    ; search for [] if is an array
-    findPare %%name,[,]
-    %if __1 != -1
-        %assign %%startIndex __1
-        %assign %%stopIndex __2
-        subToken %%name,%eval(%%startIndex+1),%%stopIndex
-
-        %if isEmpty(__1)
-            %ifstr %%data
-                %strlen %%times %%data
-            %else
-                tokenCount %%data,:
-                %assign %%times __1+1
-            %endif
-        %else
-            %assign %%times __1
-        %endif
-        subToken %%name,%%startIndex,-1
-        replaceToken %%name,__1,""
-        %xdefine %%name __1
-    %else
-        %assign %%times 1
-    %endif
-
-    %xdefine %%setName %%name
-
-    ; pointer depth searches for @
-    tokenCount %%name,@
-    %assign %%depth __1
-
-    replaceToken %%name,@,""
-    %xdefine %%name __1
-
-
-    %if %%scope=="c"
-        newgd %%name,%%size,%%times,%%depth,%%data,.rdata
-    %elif %%scope=="g"
+    %assign %%count %%current
+    %assign %%current 1
+    %rep %%count
+        %xdefine %%name %%n_%[%%current]
+        findInToken %%name,=
+        %assign %%startData %eval(__1!=-1)
         %if %%startData
-            newgd %%name,%%size,%%times,%%depth,%%data,.data
-        %else
-            newgb %%name,%%size,%%times,%%depth
+            %assign %%startDataIndex __1+1
+            subToken %%name,%%startDataIndex
+            %xdefine %%data __1
+            subToken %%name,0,%eval(%%startDataIndex-1)
+            %xdefine %%name __1
         %endif
-    %elif %%scope=="l"
-        newl %%name,%%size,%%times,%%depth
-    %elif %%scope=="a"
-        arg %%name,%%size,%%times,%%depth
-    %elif %%scope=="tbp"
-        newtbp %%name,%%size,%%times,%%depth
-    %elif %%scope=="tsp"
-        newtsp %%name,%%size,%%times,%%depth
-    %endif
 
-    newRef %%name,%%size,__1,%%depth,%%float,%%times
-    %if %%startData
-        %if %%scope == "l"
-            set %%setName=%%data
-        %elif %%scope == "a"
-            cmp qword [addr(argc)],%eval(args(procName)-8)
-            jge .enough %+ %[args(procName)]
-            set %%setName = %%data
-            .enough %+ %[args(procName)]:
+        ; size search for "local,global.."
+        findInToken %%name,"global "
+        %if __1 != -1
+            replaceToken %%name,"global ",""
+            %xdefine %%name __1
+            %define %%scope "g"
+        %else
+        findInToken %%name,"local "
+        %if __1 != -1
+            replaceToken %%name,"local ",""
+            %xdefine %%name __1
+            %define %%scope "l"
+        %else
+        findInToken %%name,"tbp "
+        %if __1 != -1
+            replaceToken %%name,"tbp ",""
+            %xdefine %%name __1
+            %define %%scope "tbp"
+        %else
+        findInToken %%name,"tsp "
+        %if __1 != -1
+            replaceToken %%name,"tsp ",""
+            %xdefine %%name __1
+            %define %%scope "tsp"
+        %else
+        findInToken %%name,"const "
+        %if __1 != -1
+            replaceToken %%name,"const ",""
+            %xdefine %%name __1
+            %define %%scope "c"
+        %else
+        findInToken %%name,"arg "
+        %if __1 != -1
+            replaceToken %%name,"arg ",""
+            %xdefine %%name __1
+            %define %%scope "a"
+        %elif inProc
+            %define %%scope "l"
+        %else
+            %define %%scope "g"
         %endif
-    %endif
+        %endif
+        %endif
+        %endif
+        %endif
+        %endif
+
+        ; size search for "byte,word.."
+        %assign %%size 1
+        findInToken %%name,"byte "
+        %if __1 != -1
+            replaceToken %%name,"byte ",""
+            %xdefine %%name __1
+            %assign %%size 1
+        %else
+        findInToken %%name,"qword "
+        %if __1 != -1
+            replaceToken %%name,"qword ",""
+            %xdefine %%name __1
+            %assign %%size 8
+        %else
+        findInToken %%name,"dword "
+        %if __1 != -1
+            replaceToken %%name,"dword ",""
+            %xdefine %%name __1
+            %assign %%size 4
+        %else
+        findInToken %%name,"word "
+        %if __1 != -1
+            replaceToken %%name,"word ",""
+            %xdefine %%name __1
+            %assign %%size 2
+        %endif
+        %endif
+        %endif
+        %endif
+
+        %assign %%float 0
+        findInToken %%name,.
+        %if __1!=-1
+            replaceToken %%name,.,""
+            %xdefine %%name __1
+            %assign %%float 1
+        %endif
+
+        ; search for [] if is an array
+        findPare %%name,[,]
+        %if __1 != -1
+            %assign %%startIndex __1
+            %assign %%stopIndex __2
+            subToken %%name,%eval(%%startIndex+1),%%stopIndex
+
+            %if isEmpty(__1)
+                %ifstr %%data
+                    %strlen %%times %%data
+                %else
+                    tokenCount %%data,:
+                    %assign %%times __1+1
+                %endif
+            %else
+                %assign %%times __1
+            %endif
+            subToken %%name,%%startIndex,-1
+            replaceToken %%name,__1,""
+            %xdefine %%name __1
+        %else
+            %assign %%times 1
+        %endif
+
+        %xdefine %%setName %%name
+
+        ; pointer depth searches for @
+        tokenCount %%name,@
+        %assign %%depth __1
+
+        replaceToken %%name,@,""
+        %xdefine %%name __1
+
+
+        %if %%scope=="c"
+            newgd %%name,%%size,%%times,%%depth,%%data,.rdata
+        %elif %%scope=="g"
+            %if %%startData
+                newgd %%name,%%size,%%times,%%depth,%%data,.data
+            %else
+                newgb %%name,%%size,%%times,%%depth
+            %endif
+        %elif %%scope=="l"
+            newl %%name,%%size,%%times,%%depth
+        %elif %%scope=="a"
+            arg %%name,%%size,%%times,%%depth
+        %elif %%scope=="tbp"
+            newtbp %%name,%%size,%%times,%%depth
+        %elif %%scope=="tsp"
+            newtsp %%name,%%size,%%times,%%depth
+        %endif
+
+        newRef %%name,%%size,__1,%%depth,%%float,%%times
+        %if %%startData
+            %if %%scope == "l"
+                set %%setName=%%data
+            %elif %%scope == "a"
+                cmp qword [addr(argc)],%eval(args(procName)-8)
+                jge .enough %+ %[args(procName)]
+                set %%setName = %%data
+                .enough %+ %[args(procName)]:
+            %endif
+        %endif
+    %assign %%current %%current+1
+    %endrep
 %endmacro
 
 ; set

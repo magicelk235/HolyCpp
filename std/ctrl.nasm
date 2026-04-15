@@ -216,7 +216,7 @@
     %assign %%useArgs 0
 
     %if !isEmpty(%%args)
-        eval %%args,tbp
+        eval %%args,tbp,1
         %push
         splitArrayToTokens [__1]
         %if %$__0 != 0

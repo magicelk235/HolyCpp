@@ -12,27 +12,30 @@
 ; new local var in a proc
 ; newl(name,size,times,depth)
 %macro newl 4
+    %assign %%size %2
     %if %4>0
-        ress 8
-    %elif %3==1
-        ress %2
+        %assign %%size 8
+    %endif
+    %if %3==1
+        ress %%size
     %else
-        ress %2*%3
+        ress %%size*%3
         ress arraySizeOffset
-        omov qword [__1],%2*%3
+        omov qword [__1],%%size*%3
     %endif
 %endmacro
 
 ; custom arg in a proc
 ; arg(name, size,times,depth)
 %macro arg 4
+    %assign %%size %2
     %if %4>0
-        %assign __args_%[procName] args(procName)+8
-        retm rbp+%eval(args(procName)+8)
-    %else
-        %assign __args_%[procName] %eval(args(procName)+align(%3*%2) + (%3>1)*8)
+        %assign %%size 8
         retm rbp+%eval(args(procName)+8)
     %endif
+
+    %assign __args_%[procName] %eval(args(procName)+align(%3*%%size) + (%3>1)*8)
+    retm rbp+%eval(args(procName)+8)
 %endmacro
 
 ; gloabl push
@@ -277,16 +280,39 @@
 %macro return 0-*
     %assign %%args max(args(procName),outs(procName))+8
 
-    
-    %assign %%out 0
+    %assign %%stackcount 0
+    %assign %%currentOut 0
     %rep %0
-        eval %1
+        %if %%stackcount==0
+            %assign %%currentOut %%currentOut+1
+            %xdefine %%o_%[%%currentOut] %1
+        %else
+            %xdefine %%o_%[%%currentOut] %%o_%[%%currentOut]%+:%+%1
+        %endif
+        findInToken %1,"("
+        %assign %%stackcount %%stackcount+__1
+        findInToken %1,"["
+        %assign %%stackcount %%stackcount+__1
+
+        findInToken %1,"]"
+        %assign %%stackcount %%stackcount-__1   
+        findInToken %1,")"
+        %assign %%stackcount %%stackcount-__1
+        %rotate 1
+    %endrep
+
+    
+    %assign %%outc %%currentOut
+    %assign %%currentOut 1
+    %assign %%out 0
+    %rep %%outc
+        eval %%o_%[%%currentOut]
         %assign forceMov 1
         mov [rbp+%eval(%%args-%%out*8)],__1,8
         %assign forceMov 0
         endEval
         %assign %%out %%out+1
-        %rotate 1
+        %assign %%currentOut %%currentOut+1
     %endrep
     jmp %[procName]exit
 %endmacro
