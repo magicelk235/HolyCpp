@@ -51,14 +51,12 @@ ld -o cli cli.o
 ./cli
 ```
 
-
-
 ### Writing a program
 
 Create a `.hcpp` file. Every program has a `main` function as its entry point:
 
 ```nasm
-%include "lib/lib.nasm"
+include <io>
 
 func main(@byte args)>1
     call print("Hello, World!\n")
@@ -66,21 +64,18 @@ func main(@byte args)>1
 end
 ```
 
-The `%include "lib/lib.nasm"` line brings in the full standard library.
-
----
-
 ## Language Reference
 
 ### Variables
 
 ```nasm
-new qword x = 42           ; local integer
-new qword y                ; local, uninitialized
+new qword x = 42           ; local/global(based on the context) integer
+new qword y                ; local/global uninitialized
 new global qword counter   ; global (BSS)
 new const byte msg[] = "hello\n"   ; constant string
 new qword arr[10]          ; array of 10 qwords
 new byte buf[1024]         ; byte buffer
+new float e = 2.7182818285 ; local/global float64
 ```
 
 ### Assignment and expressions
@@ -106,10 +101,10 @@ new qword sum
 set sum = add(10, 20)
 ```
 
-The `.` prefix on a type marks it as a float argument:
+The float prefix replaces the size to make a float argument:
 
 ```nasm
-func square(.qword x)>1
+func square(float x)>1
     return x**2
 end
 ```
@@ -122,6 +117,10 @@ if x == 0
 elif x < 0
     ; ...
 else
+    ; ...
+end
+
+loop 15
     ; ...
 end
 
@@ -158,9 +157,7 @@ List literals use `,` as a separator: `[1,2,3,4]`
 Print a string to stdout.
 
 ```nasm
-%include "lib/arrays.nasm"
-%include "lib/string.nasm"
-%include "lib/io.nasm"
+include <io>
 
 func main(@byte args)>1
     call print("hello world\n")
@@ -175,9 +172,7 @@ end
 Read an integer from stdin with `scanf`.
 
 ```nasm
-%include "lib/arrays.nasm"
-%include "lib/string.nasm"
-%include "lib/io.nasm"
+include <io>
 
 func main(@byte args)>1
     new qword x
@@ -195,9 +190,7 @@ Supported format specifiers: `"i"` integer, `"f"` float, `"c"` char, `"s"` strin
 `if`/`else` and a `while` countdown loop.
 
 ```nasm
-%include "lib/arrays.nasm"
-%include "lib/string.nasm"
-%include "lib/io.nasm"
+include <io>
 
 func main(@byte args)>1
     new qword x
@@ -222,9 +215,7 @@ end
 Declare a function with multiple arguments and a return value.
 
 ```nasm
-%include "lib/arrays.nasm"
-%include "lib/string.nasm"
-%include "lib/io.nasm"
+include <io>
 
 func sum(qword x,qword y)>1
     call printf("calculating %i+%i\n", x, y)
@@ -244,15 +235,13 @@ The `>1` suffix declares the number of return values. Arguments are separated by
 
 ### Floating Point
 
-Prefix a type with `.` to treat it as a float. Here, pi is multiplied by a user-supplied float.
+Prefix a type with float instead of size. Here, pi is multiplied by a user-supplied float.
 
 ```nasm
-%include "lib/arrays.nasm"
-%include "lib/string.nasm"
-%include "lib/io.nasm"
+include <io>
 
 func main(@byte args)>1
-    new qword x = 3.1415926535
+    new float x = 3.1415926535
     set x = x * scanf("f")
     call printf("The result is %f\n", x)
     return 0
@@ -266,9 +255,7 @@ end
 Declare a fixed-size array, fill it element by element, and print each value.
 
 ```nasm
-%include "lib/arrays.nasm"
-%include "lib/string.nasm"
-%include "lib/io.nasm"
+include <io>
 
 func main(@byte args)>1
     new qword x = 0
@@ -291,18 +278,14 @@ end
 Open a BMP file and draw it directly to the Linux framebuffer.
 
 ```nasm
-%include "lib/arrays.nasm"
-%include "lib/string.nasm"
-%include "lib/io.nasm"
-%include "lib/graphics.nasm"
+include <graphics>
 
 func main(@byte args)>1
     new qword @image
-    new qword fb[3]
 
-    set fb = openfb()
+    call openfb()
     set @image = openbmp("image.bmp")
-    call drawbmp(@fb, @image, 1, 1)
+    call drawbmp(@image, 1, 1)
 
     return 0
 end

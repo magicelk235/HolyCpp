@@ -288,6 +288,44 @@
 
         ; size search for "byte,word.."
         %assign %%size 1
+        %assign %%float 0
+        findInToken %%name,"float "
+        %if __1 != -1
+            replaceToken %%name,"float ",""
+            %xdefine %%name __1
+            %assign %%size 8
+            %assign %%float 1
+        %else
+        findInToken %%name,"int "
+        %if __1 != -1
+            replaceToken %%name,"int ",""
+            %xdefine %%name __1
+            %assign %%size 4
+        %else
+        findInToken %%name,"long "
+        %if __1 != -1
+            replaceToken %%name,"long ",""
+            %xdefine %%name __1
+            %assign %%size 8
+        %else
+        findInToken %%name,"char "
+        %if __1 != -1
+            replaceToken %%name,"char ",""
+            %xdefine %%name __1
+            %assign %%size 1
+        %else
+        findInToken %%name,"bool "
+        %if __1 != -1
+            replaceToken %%name,"bool ",""
+            %xdefine %%name __1
+            %assign %%size 1
+        %else
+        findInToken %%name,"short "
+        %if __1 != -1
+            replaceToken %%name,"short ",""
+            %xdefine %%name __1
+            %assign %%size 2
+        %else
         findInToken %%name,"byte "
         %if __1 != -1
             replaceToken %%name,"byte ",""
@@ -315,13 +353,11 @@
         %endif
         %endif
         %endif
-
-        %assign %%float 0
-        findInToken %%name,.
-        %if __1!=-1
-            replaceToken %%name,.,""
-            %xdefine %%name __1
-            %assign %%float 1
+        %endif
+        %endif
+        %endif
+        %endif
+        %endif
         %endif
 
         ; search for [] if is an array

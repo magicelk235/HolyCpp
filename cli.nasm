@@ -1,10 +1,6 @@
 %include "std/std.nasm"
-%include "lib/arrays.nasm"
-%include "lib/string.nasm"
-%include "lib/io.nasm"
-%include "lib/process.nasm"
-section .data
-
+include <io>
+include <process>
 
 section .text
 global _start
@@ -19,14 +15,14 @@ _start:
     new byte sourcePath[255]
     new const byte pathInputMessage[] = "Enter The Path For Your Code:\n"
     new const byte startMessage[] = "Welcome To HolyC++ Compiler\nPress I For Instructions,Press Q To Quit,Press Enter To Compile\n"
-    new const byte instructions[] = "To Compile HolyC++ Code Provide The Path To The File That Contains The Code\n\n"
+    new const byte instructions[] = "To Compile HolyC++ Code Provide The Path To The File That Contains The Code\n"
     new const byte endMessage[] ="https://github.com/magicelk235\n"
 
     mov rax,@startMessage
     callp print,rax
 
     callp scanf,"c",al
-    cmp al,0 ; scan clears \n 
+    cmp al,10 ; scan clears \n 
     je .compile
 
     cmp byte al,"i"

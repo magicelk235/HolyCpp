@@ -35,6 +35,45 @@
     %endrep
 %endmacro
 
+%rmacro getPath 1
+    %xdefine %%path %str(%1)
+    %ifidn %substr(%%path,1,1),"<"
+        %xdefine %%path %strcat("lib/",%substr(%%path,2,%strlen(%%path)-2))
+    %endif
+
+    ; Check for "." using only built-ins; append ".hcpp" if absent
+    %strlen %%pathlen %%path
+    %assign %%hasDot 0
+    %assign %%j 1
+    %rep %%pathlen
+        %substr %%gch %%path %%j,1
+        %ifidni %%gch,"."
+            %assign %%hasDot 1
+            %exitrep
+        %endif
+        %assign %%j %%j+1
+    %endrep
+
+    %if !%%hasDot
+        %xdefine %%path %strcat(%%path,".hcpp")
+        %strlen %%pathlen %%path
+    %endif
+
+    %ifnidn %[__imported_%+%tok(%%path)],0
+        %xdefine __imported_%[%tok(%%path)] 0
+        retm %%path
+    %else
+        retm -1
+    %endif
+%endmacro
+
+%rmacro include 1
+    getPath %1
+    %ifnidn __1,-1
+        %include __1
+    %endif
+%endmacro
+
 %macro isStringOpen 1
     toStr %1
     %xdefine %%token __1
@@ -105,13 +144,59 @@
     %endrep
 %endmacro
 
-
 ; findInToken(token1,token2)->index
 %macro findInToken 2
-    toStr %1
-    %xdefine %%str1 __1
-    toStr %2
-    %xdefine %%str2 __1
+    %defstr %%defStr1 %1
+    %strlen %%defLen1 %%defStr1
+    %assign %%isStr1 0
+
+    %if %%defLen1 >= 2
+        %substr %%firstCh %%defStr1 1
+        %substr %%lastCh %%defStr1 %%defLen1
+        %ifidni %%firstCh,"'"
+            %ifidni %%lastCh,"'"
+                %assign %%isStr1 1
+            %endif
+        %endif
+        %if !%%isStr1
+            %ifidni %%firstCh,'"'
+                %ifidni %%lastCh,'"'
+                    %assign %%isStr1 1
+                %endif
+            %endif
+        %endif
+    %endif
+
+    %if %%isStr1
+        %xdefine %%str1 %1
+    %else
+        %xdefine %%str1 %%defStr1
+    %endif
+
+    %defstr %%defStr2 %2
+    %strlen %%defLen2 %%defStr2
+    %assign %%isStr2 0
+    %if %%defLen2 >= 2
+        %substr %%firstCh %%defStr2 1
+        %substr %%lastCh %%defStr2 %%defLen2
+        %ifidni %%firstCh,"'"
+            %ifidni %%lastCh,"'"
+                %assign %%isStr2 1
+            %endif
+        %endif
+        %if !%%isStr2
+            %ifidni %%firstCh,'"'
+                %ifidni %%lastCh,'"'
+                    %assign %%isStr2 1
+                %endif
+            %endif
+        %endif
+    %endif
+    %if %%isStr2
+        %xdefine %%str2 %2
+    %else
+        %xdefine %%str2 %%defStr2
+    %endif
 
     %assign %%stringMode 0
     %assign %%stringType 0
@@ -120,33 +205,50 @@
     %strlen %%lenStr2 %%str2
     %assign %%i 1
     %assign %%loopTimes (%%lenStr1-%%lenStr2)+1
-    
+
     %if %%loopTimes<=0
-        retm -1
+        %xdefine __1 -1
+        %xdefine __0 1
         %exitmacro
     %endif
 
+    %assign %%found 0
     %rep %%loopTimes
-        %if !%%stringMode
+        %if !%%stringMode && !%%found
             %substr %%sub %%str1 %%i,%%lenStr2
             %ifidni %%sub,%%str2
-                retm %eval(%%i-1)
-                %exitrep
+                %xdefine __1 %eval(%%i-1)
+                %xdefine __0 1
+                %assign %%found 1
             %endif
         %endif
-        %substr %%sub %%str1 %%i,1
-        isStringOpen %%sub
-        %if __1
-            %if %%stringMode
-                %assign %%stringMode (%%stringType!=__2)
+        %if !%%found
+            %substr %%ch %%str1 %%i,1
+            %ifidni %%ch,"'"
+                %if %%stringMode
+                    %assign %%stringMode (%%stringType!=0)
+                %else
+                    %assign %%stringMode 1
+                    %assign %%stringType 0
+                %endif
             %else
-                %assign %%stringMode 1
-                %assign %%stringType __2
+            %ifidni %%ch,'"'
+                %if %%stringMode
+                    %assign %%stringMode (%%stringType!=1)
+                %else
+                    %assign %%stringMode 1
+                    %assign %%stringType 1
+                %endif
             %endif
+            %endif
+            %assign %%i %%i+1
         %endif
-        %assign %%i %%i+1
-        retm -1
     %endrep
+
+    %if !%%found
+        %xdefine __1 -1
+        %xdefine __0 1
+    %endif
 %endmacro
 
 %macro subString 2-3

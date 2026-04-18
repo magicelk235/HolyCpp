@@ -1,3 +1,5 @@
+include <arrays>
+
 func strToInt(@byte str)>1
     hold rax,rbx,rcx,rdx,r13,r15,r14
     mov rbx,@str
@@ -186,7 +188,7 @@ func strToFloat(@byte str)>1
     return xmm3
 end
 
-func floatToStr(.qword float, @byte str)
+func floatToStr(float num, @byte str)
     hold rax,rdi,r8,r9,rdx,rcx,rbx,rsi,xmm0,xmm1,xmm2
     %assign floatDigits 15
     mov rdi,[addr(str)] ; str ptr
@@ -195,7 +197,7 @@ func floatToStr(.qword float, @byte str)
     new buf[20] = [0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0]
 
 
-    mov rdx,[addr(float)]
+    mov rdx,num
     bt rdx,63
     jnc .pos
     omov byte [rdi],"-"

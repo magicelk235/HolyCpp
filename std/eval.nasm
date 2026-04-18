@@ -38,8 +38,11 @@
 
 ; mixed:
 
+%assign didStartTemp 0
+
 ; startTemp(type)
 %macro startTemp 1
+    %assign didStartTemp 1
     %ifidn %1,tbp
         startTempBp
     %else
@@ -49,6 +52,7 @@
 
 ; endTemp(type)
 %macro endTemp 1
+    %assign didStartTemp 0
     %ifidn %1,tbp
         endTempBp
     %endif
@@ -411,28 +415,21 @@
 
     %assign %%stringMode 0
     %assign %%stringType 0
-    %assign %%stringLen 0
 
     %assign %%i 1
-
     %rep %%len
         %substr %%sub %%str %%i,1
         isStringOpen %%sub
         %if __1
             %if %%stringMode
                 %assign %%stringMode (%%stringType!=__2)
-                %assign %%stringLen (%%stringType!=__2)*(%%stringLen)
             %else
                 %assign %%stringMode 1
                 %assign %%stringType __2
+                %assign %%count %%count+%isidn(%%sub,'"')
             %endif
         %endif
-        %if %%stringMode
-            %assign %%stringLen %%stringLen+1
-            %if %%stringLen==5
-                %assign %%count %%count+2
-            %endif
-        %else
+        %if !%%stringMode
             isOperator %%sub
             %if __1
                 %assign %%count %%count+1
@@ -668,54 +665,47 @@
 %assign stringCount 0
 
 %macro evalString 1
-    %define %%symbol '"'
     %define %%expression %str(%1)
-    %rep 2
-        %rep 100000
-            %assign %%startIndex -1
-            %assign %%stopIndex -1
-            %assign %%found 0
-            %assign %%stringMode 0
-            %assign %%stringType 0
-            %xdefine %%strExpression %%expression
-            %strlen %%len %%strExpression
-            %assign %%i 1
-            %rep %%len
-                %substr %%sub %%strExpression %%i,1
-                isStringOpen %%sub
-                %if __1
-                    %if %%stringMode
-                        %if (%%stringType==__2)
-                            %if %%i-%%startIndex>4
-                                %assign %%startIndex %%startIndex-1
-                                %assign %%stopIndex %%i
-                                %assign %%found 1
-                                %exitrep
-                            %endif
-                        %endif
-                    %else
-                        %assign %%startIndex %%i
-                        %assign %%stringMode 1
-                        %assign %%stringType __2
+    %rep 100000
+        %assign %%startIndex -1
+        %assign %%stopIndex -1
+        %assign %%found 0
+        %assign %%stringMode 0
+        %assign %%stringType 0
+        %xdefine %%strExpression %%expression
+        %strlen %%len %%strExpression
+        %assign %%i 1
+        %rep %%len
+            %substr %%sub %%strExpression %%i,1
+            isStringOpen %%sub
+            %ifidn %%sub,'"'
+                %if %%stringMode
+                    %if (%%stringType==__2)
+                        %assign %%startIndex %%startIndex-1
+                        %assign %%stopIndex %%i
+                        %assign %%found 1
+                        %exitrep
                     %endif
-
+                %else
+                    %assign %%startIndex %%i
+                    %assign %%stringMode 1
+                    %assign %%stringType __2
                 %endif
-                %assign %%i %%i+1
-            %endrep
-
-            %if !%%found
-                %exitrep
-            %endif
-
-            subString %%strExpression,%%startIndex,%%stopIndex
-            %xdefine %%string __1
-            %xdefine %%varName S %+ stringCount %+ S
-            %assign stringCount stringCount+1
-            new const byte %%varName[] = %tok(%%string)
-            replaceToken %tok(%%expression),%%string,@%[%%varName]
-            %xdefine %%expression %str(__1)
+                %endif
+            %assign %%i %%i+1
         %endrep
-        %define %%symbol "'"
+
+        %if !%%found
+            %exitrep
+        %endif
+
+        subString %%strExpression,%%startIndex,%%stopIndex
+        %xdefine %%string __1
+        %xdefine %%varName S %+ stringCount %+ S
+        %assign stringCount stringCount+1
+        new const byte %%varName[] = %tok(%%string)
+        replaceToken %tok(%%expression),%%string,@%[%%varName]
+        %xdefine %%expression %str(__1)
     %endrep
     retm %tok(%%expression)
 %endmacro
@@ -803,7 +793,7 @@
                 evalOperator2Operands %$expression, / ,div,1
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression, % ,mod,1
+                evalOperator2Operands %$expression,//,mod,1
                 %xdefine %$expression __1
 
                 evalOperator2Operands %$expression, - ,sub,1
@@ -879,5 +869,7 @@
 %endmacro
 
 %macro endEval 0
-    endTemp tempType
+    %if didStartTemp
+        endTemp tempType
+    %endif
 %endmacro

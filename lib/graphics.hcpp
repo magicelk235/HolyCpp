@@ -1,5 +1,9 @@
-; opens fb and mmap it, returns an array of fb pointer,sizex,sizey
-func openfb()>3
+include <io>
+
+new qword frameBuffer[3]
+
+; opens fb and mmap it, saves in an array the fb pointer,sizex,sizey
+func openfb()
     hold rax,r15,r14,r13
     new byte path = "/dev/fb0"
     mov rax,@path
@@ -19,7 +23,9 @@ func openfb()>3
 
     callp close,r15 ; closes the fb0 after mmap and ioctl
 
-    return rax,r14,r13
+    mov frameBuffer[0],rax
+    mov frameBuffer[1],r14
+    mov frameBuffer[2],r13
 end
 
 ; opens a bmp image and mmap it
@@ -33,9 +39,9 @@ func openbmp(@byte path)>1
 end
 
 ; fbPtr+4*(x+y*xres)
-func fbPixelOffset(@qword fb,qword x,qword y)>1
+func fbPixelOffset(qword x,qword y)>1
     hold rax,rbx
-    mov rax,@fb
+    mov rax,@frameBuffer
 
 
     mov rbx,[rax+16] ;xres
@@ -47,9 +53,9 @@ func fbPixelOffset(@qword fb,qword x,qword y)>1
     return rbx
 end
 
-func clearScreen(@qword fb)
+func clearScreen()
     hold rax,rbx
-    mov rax,@fb
+    mov rax,@frameBuffer
     mov rbx,[rax+16] ;xres
     imul rbx,[rax+24] ;yres
     mov rax,[rax+8] ; fb ptr
@@ -60,10 +66,10 @@ func clearScreen(@qword fb)
     jnz .loop
 end
 
-func drawbmp(@qword fb,@byte bmp,qword x,qword y)
+func drawbmp(@byte bmp,qword x,qword y)
     hold rax,rbx,rcx,rdx,rdi,rsi,r15,r14
-    mov rdi,@fb
-    callp fbPixelOffset,rdi,x,y,r15 ; r15= fb offset
+    mov rdi,@frameBuffer
+    callp fbPixelOffset,x,y,r15 ; r15= fb offset
 
     mov rsi,@bmp
     mov rax,[rsi+18],8,4 ; const image width
@@ -94,11 +100,48 @@ func drawbmp(@qword fb,@byte bmp,qword x,qword y)
 end
 
 ; draw a pixel
-func draw(@qword fb,dword color,qword x,qword y)
+func draw(dword color,qword x,qword y)
     hold rax,rbx
-    mov rax,@fb
-    callp fbPixelOffset,rax,x,y,rax
+    callp fbPixelOffset,x,y,rax
 
     mov ebx,color
     mov [rax],ebx
+end
+
+; enable raw input: no echo, no line-buffering, non-blocking reads (for games)
+func rawOn()
+    hold rax,rdi,rsi,rdx
+    new byte termios[60]
+    mov rdi,0
+    mov rsi,5401h
+    mov rdx,@termios
+    add rdx,arraySizeOffset
+    mov rax,16
+    syscall
+    and dword [rdx+12],~0Ah   ; clear ECHO (8) and ICANON (2)
+    omov byte [rdx+23],0       ; VMIN=0  (non-blocking reads)
+    omov byte [rdx+22],0       ; VTIME=0 (no timeout)
+    mov rdi,0
+    mov rsi,5402h
+    mov rax,16
+    syscall
+end
+
+; restore normal terminal: echo on, line-buffered input
+func rawOff()
+    hold rax,rdi,rsi,rdx
+    new byte termios[60]
+    mov rdi,0
+    mov rsi,5401h
+    mov rdx,@termios
+    add rdx,arraySizeOffset
+    mov rax,16
+    syscall
+    or dword [rdx+12],0Ah     ; set ECHO (8) and ICANON (2)
+    omov byte [rdx+23],1       ; VMIN=1  (restore default)
+    omov byte [rdx+22],0       ; VTIME=0 (restore default)
+    mov rdi,0
+    mov rsi,5402h
+    mov rax,16
+    syscall
 end

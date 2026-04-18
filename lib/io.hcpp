@@ -1,3 +1,5 @@
+include <string>
+
 func exit(qword code)
     hold rdi,rax
     mov rax,60
@@ -112,10 +114,14 @@ func read(qword fd, @byte buf, qword count)
     mov rsi,@buf
     add rsi,arraySizeOffset
     syscall
-    sub rsi,arraySizeOffset
-    mov [rsi],rax
+    cmp rax,0
+    jg .read
+    return
+    .read:
+    mov [rsi-arraySizeOffset],rax
+    mov rcx,rsi
     add rsi,rax
-    omov byte [rsi+8],0
+    omov byte [rsi+arraySizeOffset],0
 end
 
 func write(qword fd, @byte buf, qword count)
@@ -257,15 +263,6 @@ func print(@byte str)
     callp write,1,rdi,-1
 end
 
-func scan(@byte buf)
-    hold rdi
-    mov rdi,@buf
-    callp read,0,rdi,-1
-    dec qword [rdi]
-    add rdi,[rdi]
-    mov [rdi+8],0,1
-end
-
 func printf(@byte format)
     hold rdi,rsi,rax,rcx,rbx
     new buf[4096]
@@ -297,17 +294,33 @@ func printf(@byte format)
 
 end
 
+func scan(@byte buf)
+    hold rdi
+    mov rdi,@buf
+    callp read,0,rdi,-1
+    dec qword [rdi]
+    add rdi,[rdi]
+    mov [rdi+8],0,1
+end
+
 func scanf(byte format)>1
     hold rax,rcx,rdi,rsi
     new byte readBuf[50]
+    cmp byte [addr(format)],"c"
+    je .char
     cmp byte [addr(format)],"s"
     je .string
     mov rsi,@readBuf
 
     callp scan,rsi
-
+    dec qword [rsi]
     callp sscanf,byte [addr(format)],rsi,rsi
     return rsi
+    .char:
+    mov rsi,@readBuf
+    callp read,0,rsi,-1
+    movsx rax,byte [rsi+arraySizeOffset]
+    return rax
     .string:
     mov rdi,@argv
     add rdi,16 ; skip argc and format

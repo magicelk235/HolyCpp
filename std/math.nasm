@@ -80,9 +80,11 @@
 
 ; mul(var1,var2,dest)
 %macro mul 3
-    %if (%isnum(%2) %2>0 && (%2&(%2-1))==0)
-        sal %1,ilog2(%2),%3 
-        %exitmacro       
+    %if (%isnum(%2) && %2>0 && (%2&(%2-1))==0)
+        %if %2>0 && ((%2&(%2-1))==0)
+            sar %1,ilog2(%2),%3     
+            %exitmacro   
+        %endif
     %endif
 
     isInputFloat %1,%2,%3
@@ -116,9 +118,11 @@
 
 ; div(var1,var2,dest)
 %macro div 3
-    %if (%isnum(%2) %2>0 && (%2&(%2-1))==0)
-        sal %1,ilog2(%2),%3     
-        %exitmacro   
+    %if (%isnum(%2))
+        %if %2>0 && ((%2&(%2-1))==0)
+            sal %1,ilog2(%2),%3     
+            %exitmacro   
+        %endif
     %endif
 
     isInputFloat %1,%2,%3
@@ -189,7 +193,7 @@
             
         cmp ah,0
         jge %%byteIsPos
-        add ah,%2,ah
+        add ah,__1
         %%byteIsPos:
         mov %3,ah
     %elif size(%3) == 2
@@ -205,7 +209,7 @@
     
         cmp dx,0
         jge %%wordIsPos
-        add dx,%2,dx
+        add dx,__1
         %%wordIsPos:
         mov %3,dx
     %elif size(%3)==4
@@ -221,7 +225,7 @@
             
         cmp edx,0
         jge %%bwordIsPos
-        add edx,%2,edx
+        add edx,__1
         %%bwordIsPos:
         mov %3,edx
     %else
@@ -237,7 +241,7 @@
             
         cmp rdx,0
         jge %%qwordIsPos
-        add rdx,%2,rdx
+        add rdx,__1
         %%qwordIsPos:
         mov %3,rdx
     %endif

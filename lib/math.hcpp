@@ -1,0 +1,72 @@
+func abs(qword x)>1
+    hold rax
+    mov rax,x
+    test rax,rax
+    jns .pos
+    neg rax
+    .pos:
+    return rax
+end
+
+func fabs(float x)>1
+    hold rax,rbx
+    mov rax,x
+    mov rbx,7FFFFFFFFFFFFFFFh
+    and rax,rbx
+    mov xmm0,rax
+    return rax
+end
+
+func sqrt(float x)>1
+    hold xmm0
+    mov xmm0,x
+    sqrtsd xmm0,xmm0
+    return xmm0
+end
+
+func floor(float x)>1
+    hold xmm0
+    mov xmm0,x
+    roundsd xmm0,xmm0,1
+    return xmm0
+end
+
+func ceil(float x)>1
+    hold xmm0
+    mov xmm0,x
+    roundsd xmm0,xmm0,2
+    return xmm0
+end
+
+func rand(qword start, qword stop)>1
+    hold rax,rbx,rcx,rdx
+    .retry:
+    rdrand rax
+    jnc .retry
+    mov rbx,stop
+    sub rbx,[addr(start)]
+    inc rbx
+    mod rax,rbx,rdx
+    add rdx,[addr(start)]
+    return rdx
+end
+
+func frand(float start, float stop)>1
+    hold rax,rbx,xmm1,xmm0
+    new float one = 1.0
+    mov xmm1,stop
+    subsd xmm1,[addr(start)]
+
+    .retry:
+    rdrand rax
+    jnc .retry
+    mov rbx,0fffffffffffffh
+    and rax,rbx
+    mov rbx,03FF0000000000000h
+    or rax,rbx
+    mov xmm0,rax
+    subsd xmm0,[addr(one)]
+    mulsd xmm0,xmm1
+    addsd xmm0,[addr(start)]
+    return xmm0
+end
