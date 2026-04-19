@@ -59,7 +59,7 @@ Create a `.hcpp` file. Every program has a `main` function as its entry point:
 include <io>
 
 func main(@byte args)>1
-    call print("Hello, World!\n")
+    print("Hello, World!\n")
     return 0
 end
 ```
@@ -81,9 +81,9 @@ new float e = 2.7182818285 ; local/global float64
 ### Assignment and expressions
 
 ```nasm
-set x = (a + b) * c         ; evaluate expression and assign
-set y = a == b              ; y = 1 if equal, 0 otherwise
-set ptr = @myVar            ; ptr = address of myVar
+x = (a + b) * c         ; evaluate expression and assign
+y = a == b              ; y = 1 if equal, 0 otherwise
+ptr = @myVar            ; ptr = address of myVar
 ```
 
 ### Functions
@@ -92,13 +92,13 @@ set ptr = @myVar            ; ptr = address of myVar
 ; declare a function with 2 args and 1 return value
 func add(qword a, qword b)>1
     new qword result
-    set result = a+b
+    result = a+b
     return result
 end
 
 ; call it
 new qword sum
-set sum = add(10, 20)
+sum = add(10, 20)
 ```
 
 The float prefix replaces the size to make a float argument:
@@ -125,11 +125,11 @@ loop 15
 end
 
 while x < 10
-    set x = x+1
+    x = x+1
 end
 
 dowhile x < 10
-    set x = x+1
+    x = x+1
 end
 ```
 
@@ -139,9 +139,9 @@ Use `break` to exit a loop and `continue` to skip to the next iteration.
 
 ```nasm
 new qword arr[10]
-set arr[0] = 42           ; write element
-set x = arr[2]            ; read element
-set x = arr[#]            ; read byte length
+arr[0] = 42           ; write element
+x = arr[2]            ; read element
+x = arr[#]            ; read byte length
 ```
 
 Array memory layout: `[8-byte byte length][element0][element1]...`
@@ -160,7 +160,7 @@ Print a string to stdout.
 include <io>
 
 func main(@byte args)>1
-    call print("hello world\n")
+    print("hello world\n")
     return 0
 end
 ```
@@ -176,7 +176,7 @@ include <io>
 
 func main(@byte args)>1
     new qword x
-    set x = scanf("i")
+    x = scanf("i")
     return 0
 end
 ```
@@ -194,15 +194,15 @@ include <io>
 
 func main(@byte args)>1
     new qword x
-    set x = scanf("i")
+    x = scanf("i")
     if x>0
-        call printf("%i is bigger than 0\n",x)
+        printf("%i is bigger than 0\n",x)
         while x>0
-            call printf("%i\n,x)
-            set x = x-1
+            printf("%i\n,x)
+            x = x-1
         end
     else
-        call printf("%i is smaller than 0\n",x)
+        printf("%i is smaller than 0\n",x)
     end
     return 0
 end
@@ -218,13 +218,13 @@ Declare a function with multiple arguments and a return value.
 include <io>
 
 func sum(qword x,qword y)>1
-    call printf("calculating %i+%i\n", x, y)
-    call printf("the arg count is %i\n", argc)
+    printf("calculating %i+%i\n", x, y)
+    printf("the arg count is %i\n", argc)
     return x+y
 end
 
 func main(@byte args)>1
-    call sum(2,4)
+    sum(2,4)
     return 0
 end
 ```
@@ -242,8 +242,8 @@ include <io>
 
 func main(@byte args)>1
     new float x = 3.1415926535
-    set x = x * scanf("f")
-    call printf("The result is %f\n", x)
+    x = x * scanf("f")
+    printf("The result is %f\n", x)
     return 0
 end
 ```
@@ -261,9 +261,9 @@ func main(@byte args)>1
     new qword x = 0
     new qword arr[10]
     while x < arr[#]/8
-        set arr[x] = scanf("i")
-        call printf("arr[%i] = %i\n", x, arr[x])
-        set x = x+1
+        arr[x] = scanf("i")
+        printf("arr[%i] = %i\n", x, arr[x])
+        x = x+1
     end
     return 0
 end
@@ -283,9 +283,9 @@ include <graphics>
 func main(@byte args)>1
     new qword @image
 
-    call openfb()
-    set @image = openbmp("image.bmp")
-    call drawbmp(@image, 1, 1)
+    openfb()
+    @image = openbmp("image.bmp")
+    drawbmp(@image, 1, 1)
 
     return 0
 end

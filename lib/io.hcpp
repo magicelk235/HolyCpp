@@ -119,13 +119,12 @@ func read(qword fd, @byte buf, qword count)
     return
     .read:
     mov [rsi-arraySizeOffset],rax
-    mov rcx,rsi
     add rsi,rax
-    omov byte [rsi+arraySizeOffset],0
+    omov byte [rsi],0
 end
 
 func write(qword fd, @byte buf, qword count)
-    hold rax,rdi,rsi,rdx
+    hold rax,rdi,rsi,rdx,rcx,r11
     cmp qword [addr(count)],-1
     jne .beforeNormalWrite
     mov rdx,buf[#]

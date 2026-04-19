@@ -17,6 +17,23 @@
     %assign __float_%1 %5
     %assign __times_%1 %6
     %xdefine __ref_%1 1
+    %xdefine __name %1
+
+    
+    %ifnmacro %1
+        %macro %[__name] 1-*
+            set %?%{1:-1}
+        %endmacro
+    %endif
+
+    %rep depth(%1)
+        %xdefine __name @%+__name
+        %ifnmacro %[__name]
+            %macro %[__name] 1-*
+            set %?%{1:-1}
+            %endmacro
+        %endif
+    %endrep
 %endmacro
 
 %define depth(name) __depth_ %+ name

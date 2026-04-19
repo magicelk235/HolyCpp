@@ -105,6 +105,7 @@ func send(qword socketfd, @byte buf, qword count, byte flags)
     cmp byte [addr(flags)],"n" ; normal
     jne .notNormal
     xor r10,r10
+    jnp .call
 
     .notNormal:
     cmp byte [addr(flags)],"d" ; dontwait

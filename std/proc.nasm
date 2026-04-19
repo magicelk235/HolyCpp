@@ -143,6 +143,7 @@
 %define heldSize(x) __heldSize_ %+ x
 %define held(x) __held_ %+ x
 %define procClean(x) __procClean_ %+ x
+%define isProc(x) %isnum(locals(x))
 
 %macro hold 1-*
     sumSize %{1:-1}
@@ -156,6 +157,11 @@
 %macro proc 1-2
     %push 
     %define procName %1
+    
+    %macro %[procName] 1-*
+        call %?%{1:-1}
+    %endmacro
+
     %define %$blockType "proc"
     global __proc_%+procName
     __proc_%+procName:

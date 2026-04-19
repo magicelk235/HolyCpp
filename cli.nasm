@@ -37,7 +37,7 @@ _start:
     jne _start
     mov rax,@endMessage
     callp print,rax
-    jmp exit
+    jmp .exit
 
     .compile:
     mov rax,@pathInputMessage
@@ -69,7 +69,7 @@ _start:
     jmp _start
 
     
-exit:
+.exit:
     mov rax,60
     xor rdi,rdi
     syscall
