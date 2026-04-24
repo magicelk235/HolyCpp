@@ -1,10 +1,10 @@
 include <io>
 
-new qword frameBuffer[3]
+new qword frameBuffer[5]
 
 ; opens fb and mmap it, saves in an array the fb pointer,sizex,sizey
 func openfb()
-    hold rax,r15,r14,r13
+    hold rax,r15,r14,r13,rbx
     new byte path = "/dev/fb0"
     mov rax,@path
     callp open,rax,"r+",r15
@@ -18,14 +18,18 @@ func openfb()
 
     imul rax,r14 ; yres*xres*bytePerPixel(4) = total Size
     shl rax,2
+    mov rbx,rax
 
-    callp mmap,r15,"w",rax,rax
-
+    callp mmap,r15,"w",rbx,rax
     callp close,r15 ; closes the fb0 after mmap and ioctl
+
+    callp mmap,0,"a",rbx,rbx
 
     mov frameBuffer[0],rax
     mov frameBuffer[1],r14
     mov frameBuffer[2],r13
+    mov frameBuffer[3],rbx
+    mov frameBuffer[4],0
 end
 
 ; opens a bmp image and mmap it
@@ -40,41 +44,63 @@ end
 
 ; fbPtr+4*(x+y*xres)
 func fbPixelOffset(qword x,qword y)>1
-    hold rax,rbx
-    mov rax,@frameBuffer
+    hold rbx,rax
+    mov rax,x
+    cmp rax,[addr(frameBuffer + 16)]
+    jb .xRight
+    return frameBuffer[0]
+    .xRight:
+    mov rax,y
+    cmp rax,[addr(frameBuffer + 24)]
+    jb .yRight
+    return frameBuffer[0]
+    .yRight:
 
-
-    mov rbx,[rax+16] ;xres
-    imul rbx,[addr(y)] ; y*xres
+    mov rax,y
+    mov rbx,frameBuffer[1] ;xres
+    imul rbx,rax ; y*xres
 
     add rbx,[addr(x)] ; +x
     shl rbx,2 ; *4
-    add rbx,[rax+8]
+    add rbx,[addr(frameBuffer)+32] ; frameBuffer ptr
     return rbx
 end
 
 func clearScreen()
-    hold rax,rbx
-    mov rax,@frameBuffer
-    mov rbx,[rax+16] ;xres
-    imul rbx,[rax+24] ;yres
-    mov rax,[rax+8] ; fb ptr
+    hold rax,rbx,rcx
+    mov rbx,frameBuffer[1] ;xres
+    imul rbx,[addr(frameBuffer)+24] ;yres
+    mov rax,frameBuffer[3] ; fb ptr
+    mov rcx,frameBuffer[4] ; color
     .loop:
-    mov [rax],0,4
+    mov [rax],ecx
     add rax,4
     dec rbx
     jnz .loop
 end
 
+func pointValid(qword x,qword y)>1
+    mov rax,x
+    cmp rax,[addr(frameBuffer + 16)]
+    jb .xRight
+    return 0
+    .xRight:
+    mov rax,y
+    cmp rax,[addr(frameBuffer + 24)]
+    jb .yRight
+    return 0
+    .yRight:
+    return 1
+end
+
 func drawbmp(@byte bmp,qword x,qword y)
     hold rax,rbx,rcx,rdx,rdi,rsi,r15,r14
-    mov rdi,@frameBuffer
     callp fbPixelOffset,x,y,r15 ; r15= fb offset
 
     mov rsi,@bmp
     mov rax,[rsi+18],8,4 ; const image width
     mov rbx,[rsi+22],8,4 ; image height
-    mov rdx,[rdi+16] ; xres
+    mov rdx,frameBuffer[1] ; xres
 
 
     add rsi,70 ; skip the header
@@ -86,16 +112,23 @@ func drawbmp(@byte bmp,qword x,qword y)
     add r15,rbx ; fb(x,y) + (height)*4*xres
 
 
-
     .resetLoop:
-    dec r14 ; loop times = height
-    jz .end
     mov rcx,rax ; width
     sub r15,rdx ; ptr - xres*4
     mov rdi,r15 ; changing fb ptr
-    rep movsd
-    
-    jmp .resetLoop
+    .loop:
+    mov ebx,[rsi]
+    test ebx,0ff000000h
+    jz .endloop
+    mov [rdi],ebx
+    .endloop:
+    add rdi,4
+    add rsi,4
+    dec rcx
+    jnz .loop
+
+    dec r14 ; loop times = height
+    jnz .resetLoop
     .end:
 end
 
@@ -145,3 +178,16 @@ func rawOff()
     mov rax,16
     syscall
 end
+
+func blit()
+    hold rcx,rdi,rsi
+    mov rcx,frameBuffer[2]
+    imul rcx,[addr(frameBuffer)+16]
+    mov rsi,frameBuffer[3]
+    mov rdi,frameBuffer[0]
+    rep movsd
+end
+
+%define xres frameBuffer[1]
+%define backGroundColor frameBuffer[4]
+%define yres frameBuffer[2]

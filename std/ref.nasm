@@ -8,14 +8,15 @@
     %endif
 %endmacro
 
-; makes a new ref that store size,addr,depth,float,times
-; newRef(ref's name,size,addr,depth,float,times)
-%macro newRef 6
+; makes a new ref that store size,addr,depth,float,times,signed
+; newRef(ref's name,size,addr,depth,float,times,signed)
+%macro newRef 7
     %assign __size_%1 %2 ;-> __size_name
     %xdefine __addr_%1 %3; -> __addr_name
     %assign __depth_%1 %4
     %assign __float_%1 %5
     %assign __times_%1 %6
+    %assign __signed_%1 %7
     %xdefine __ref_%1 1
     %xdefine __name %1
 
@@ -40,6 +41,7 @@
 %define times(name) __times_ %+ name
 %define float(name) __float_ %+ name
 %define addr(name) __addr_ %+ name
+%define signed(name) __signed_ %+ name
 %define isRef(x) %isnum(__ref_%+x)
 %define isDirectRef(x) %isidn(__ref_ %+ x,1)
 
@@ -246,7 +248,7 @@
     %assign %%current 1
     %rep %%count
         %xdefine %%name %%n_%[%%current]
-        findInToken %%name,=
+        findInToken %%name,= ; split start data
         %assign %%startData %eval(__1!=-1)
         %if %%startData
             %assign %%startDataIndex __1+1
@@ -256,7 +258,7 @@
             %xdefine %%name __1
         %endif
 
-        ; size search for "local,global.."
+        ; size searches for scope
         findInToken %%name,"global "
         %if __1 != -1
             replaceToken %%name,"global ",""
@@ -303,7 +305,8 @@
         %endif
         %endif
 
-        ; size search for "byte,word.."
+        %assign %%signed 1
+        ; size searches for size
         %assign %%size 1
         %assign %%float 0
         findInToken %%name,"float "
@@ -318,24 +321,28 @@
             replaceToken %%name,"int ",""
             %xdefine %%name __1
             %assign %%size 4
+            %assign %%signed 1
         %else
         findInToken %%name,"long "
         %if __1 != -1
             replaceToken %%name,"long ",""
             %xdefine %%name __1
             %assign %%size 8
+            %assign %%signed 1
         %else
         findInToken %%name,"char "
         %if __1 != -1
             replaceToken %%name,"char ",""
             %xdefine %%name __1
             %assign %%size 1
+            %assign %%signed 0
         %else
         findInToken %%name,"bool "
         %if __1 != -1
             replaceToken %%name,"bool ",""
             %xdefine %%name __1
             %assign %%size 1
+            %assign %%signed 0
         %else
         findInToken %%name,"short "
         %if __1 != -1
@@ -375,6 +382,13 @@
         %endif
         %endif
         %endif
+        %endif
+
+        findInToken %%name,~
+        %if __1!=-1
+            replaceToken %%name,~,""
+            %xdefine %%name __1
+            %assign %%signed 0
         %endif
 
         ; search for [] if is an array
@@ -429,7 +443,7 @@
             newtsp %%name,%%size,%%times,%%depth
         %endif
 
-        newRef %%name,%%size,__1,%%depth,%%float,%%times
+        newRef %%name,%%size,__1,%%depth,%%float,%%times,%%signed
         %if %%startData
             %if %%scope == "l"
                 set %%setName=%%data
@@ -453,12 +467,43 @@
         %rotate 1
     %endrep
 
+    clearSpaces %%data
+    %xdefine %%data __1
+
     findInToken %%data,=
-    %assign %%startDataIndex __1
-    subToken %%data,0,%%startDataIndex
-    %xdefine %%name __1
-    subToken %%data,%eval(%%startDataIndex+1)
-    eval __1
-    mov %%name,__1
-    endEval
+    %if __1!=-1
+        %assign %%startDataIndex __1
+        subToken %%data,%eval(%%startDataIndex+1)
+        %xdefine %%expression __1
+
+        subToken %%data,%eval(%%startDataIndex-1),%%startDataIndex
+        %xdefine %%sub __1
+
+        isOperator %str(%%sub)
+        %if __1
+            subToken %%data,0,%eval(%%startDataIndex-1)
+            %xdefine %%name __1
+            %xdefine %%expression (%%expression)%+%%sub%+%%name
+        %else
+            subToken %%data,0,%%startDataIndex
+            %xdefine %%name __1
+        %endif
+        eval %%expression
+        mov %%name,__1
+        endEval
+    %else
+            findInToken %%data,"++"
+    %if __1 != -1
+        subToken %%data,0,__1
+        lxd __1,""
+        inc sizename(__2) __1
+    %else
+        findInToken %%data,"--"
+        %if __1 != -1
+            subToken %%data,0,__1
+            lxd __1,""
+            dec sizename(__2) __1
+        %endif
+    %endif
+    %endif
 %endmacro

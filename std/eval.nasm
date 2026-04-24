@@ -154,8 +154,8 @@
 %endmacro
 
 
-; findOperator1Operand(expression,operator) -> index,streak
-%macro findOperator1Operand 2
+; findOperator1Operand(expression,operator,ignoreDigits) -> index,streak
+%macro findOperator1Operand 3
     toStr %1
     %xdefine %%str1 __1
     toStr %2
@@ -190,19 +190,25 @@
             %ifidni %%sub,%%str2
                 ; checks if after the operator theres an operand and not operator
                 %substr %%after %%str1 %%i+%%lenStr2,1
-                isSymbol %%after
-                %if !__1
+                %substr %%afterAfter %%str1 %%i+%%lenStr2+1,1
+                %assign %%isAfterNum (%isidn(%%after,"-")&&isStringDigit(%%afterAfter))
+                isOperator %%after
+                %if !__1 || %%isAfterNum
                     ; if operator at start its 1-Operand Operator
                     %if %%i==1
-                        retm %eval(%%i-1),%%streak
-                        %exitrep
+                        %if !(%3&&(isStringDigit(%%after)||%%isAfterNum))
+                            retm %eval(%%i-1),0
+                            %exitrep
+                        %endif
                     %else
                        ; check if before the operator theres another one, 1-2 -> "-" is 2 operands,1&!1 -> "!" is 1 operand
                         %substr %%before %%str1 %%i-1,1
                         isSymbol %%before
                         %if __1
-                            retm %eval(%%i-1),%%streak
-                            %exitrep
+                            %if !(%3&&(isStringDigit(%%after)||%%isAfterNum))
+                                retm %eval(%%i-1),%%streak
+                                %exitrep
+                            %endif
                         %endif
                     %endif
                 %endif
@@ -214,11 +220,11 @@
 
         %assign %%i %%i+1
         retm -1
-    %endrep
-    
+    %endrep 
 %endmacro
 
-%macro findOperator2Operands 2
+; findOperator2Operands(expression,operator,ignoreDigits)
+%macro findOperator2Operands 3
     toStr %1
     %xdefine %%str1 __1
     toStr %2
@@ -254,10 +260,14 @@
                     isOperator %%before
                     %if !__1
                         %substr %%after %%str1 %%i+%%lenStr2,1
+                        %substr %%afterAfter %%str1 %%i+%%lenStr2+1,1
+                        %assign %%isAfterNum (%isidn(%%after,"-")&&isStringDigit(%%afterAfter))
                         isOperator %%after
-                        %if !__1
-                            retm %eval(%%i-1)
-                            %exitrep
+                        %if !__1 ||%%isAfterNum
+                            %if !(%3&&(isStringDigit(%%before)||isStringDigit(%%after)||%%isAfterNum))
+                                retm %eval(%%i-1)
+                                %exitrep
+                            %endif
                         %endif
                     %endif
                 %endif
@@ -332,7 +342,10 @@
     %rep 100000
         subString %str(%1),%eval(%%i-1),%%i
         %xdefine %%rightOperand __1
-                
+        subString %str(%1),%%i,%eval(%%i+1)
+        %xdefine %%beforeRightOperand __1
+        %assign %%isOperandNum isStringDigit(%%beforeRightOperand)&&%isidn(%%rightOperand,"-")
+
         isStringOpen %%rightOperand
         %if __1
             %if %%stringMode
@@ -344,7 +357,7 @@
         %endif
         %if !%%stringMode
             isSymbol %%rightOperand
-            %if __1
+            %if __1&&!%%isOperandNum
                 %assign %%stop %%i-1
                 %exitrep
             %elif %%i==%%max
@@ -374,6 +387,21 @@
     %rep 100000
         subString %str(%1),%%i,%eval(%%i+1)
         %xdefine %%leftOperand __1
+        %if %%i != 0
+            subString %str(%1),%eval(%%i-1),%%i
+            %xdefine %%beforeLeftOperand __1
+        %else
+            %xdefine %%beforeLeftOperand ""
+        %endif
+
+        subString %str(%1),%eval(%%i+1),%eval(%%i+2)
+        %xdefine %%afterLeftOperand __1
+        %if %strlen(%%beforeLeftOperand) == 1 && %strlen(%%beforeLeftOperand) == 1 && %strlen(%%afterLeftOperand) == 1 
+            %assign %%isOperandNum isStringDigit(%%leftOperand)&& %isidn(%%beforeLeftOperand,"-")
+            %assign %%isOperandNum %%isOperandNum||(isStringDigit(%%afterLeftOperand)&&%isidn(%%leftOperand,"-"))
+        %else
+            %assign %%isOperandNum 0
+        %endif
         isStringOpen %%leftOperand
         %if __1
             %if %%stringMode
@@ -385,7 +413,7 @@
         %endif
         %if !%%stringMode
             isSymbol %%leftOperand
-            %if __1
+            %if __1&&!%%isOperandNum
                 %assign %%start %%i+1
                 %exitrep
             %elif %%i<%%min
@@ -459,14 +487,14 @@
     retm %%leftOperand,%%rightOperand,%%expression
 %endmacro
 
-; evalOperator2Operands(mainToken,operator,operatorMacro,useEvalForConst)
-%macro evalOperator2Operands 4
+; evalOperator2Operands(mainToken,operator,operatorMacro,useEvalForConst,ignore digits)
+%macro evalOperator2Operands 5
     tokenLen %2
     %assign %%operatorLen __1
 
     %xdefine %%expression %1
     %rep 100000
-        findOperator2Operands %%expression,%2
+        findOperator2Operands %%expression,%2,%5
         %if __1 == -1
             %exitrep
         %endif
@@ -474,15 +502,21 @@
 
         %xdefine %%operand1 __1
         %xdefine %%operand2 __2
+
+
         %xdefine %%currentExpression __3
         %if %4 && %isnum(%%operand1) && %isnum(%%operand2)
             %assign %%value %eval(%%currentExpression)
             replaceToken %%expression,%%currentExpression,%%value
         %else
+            sizeByToken %%operand1
+            %assign %%size1 __1
+            sizeByToken %%operand2
+            %assign %%size2 __1
 
             %xdefine %%varName _TEV %+ varCount
         
-            new tempType qword %%varName
+            new tempType sizename(__macro_max(%%size1,%%size2)) %%varName
 
             %3 %%operand1,%%operand2,%%varName
             replaceToken %%expression,%%currentExpression,%%varName
@@ -493,14 +527,14 @@
     retm %%expression
 %endmacro
 
-; evalOperator1Operand(mainToken,operator,operatorMacro,streakUsed,useEvalForConst)
-%macro evalOperator1Operand 5
+; evalOperator1Operand(mainToken,operator,operatorMacro,streakUsed,useEvalForConst,ignore digits)
+%macro evalOperator1Operand 6
     tokenLen %2
     %assign %%operatorLen __1
     %xdefine %%expression %1
     %rep 100000
         ; searches for 1-operand operator
-        findOperator1Operand %%expression,%2
+        findOperator1Operand %%expression,%2,%6
         %if __1 == -1
             %exitrep
         %endif
@@ -520,7 +554,7 @@
             %xdefine %%currentExpression __1
         %endif
         %if %5 && %isnum(%%operand)
-            %assign %%value %eval(%%currentExpression)
+            %assign %%value %eval(%%currentExpression) 
             replaceToken %%expression,%%currentExpression,%%value
         %else
             %xdefine %%varName _TEV0 %+ varCount
@@ -546,8 +580,8 @@
 %macro searchGroup 3
     %define %%token %1
     %rep 100000
-
-        %if isEmpty(%%token)
+        %defstr %%strToken %%token
+        %if isEmpty(%%strToken)
             retm -1,-1
             %exitrep
         %endif
@@ -716,6 +750,11 @@
         %assign %%forceEval %3
     %endif
 
+    isNumber %1
+    %if __1&&!%%forceEval
+        retm %1
+        %exitmacro
+    %endif
 
     %define tempType tsp
     %define %%expression %1
@@ -765,7 +804,7 @@
             %xdefine %$expression __2
             %assign %%recursiveCount %%recursiveCount+1
         %else
-            ; searchGroup %$expression,[,]
+            searchGroup %$expression,[,]
             %ifnidn __1,-1
                 %push
                 %xdefine %$original __1
@@ -778,73 +817,81 @@
                 evalProc %$expression
                 %xdefine %$expression __1
 
-                evalOperator1Operand %$expression,@,lea,1,0
+                evalOperator1Operand %$expression,@,lea,1,0,1
                 %xdefine %$expression __1
 
-                evalOperator1Operand %$expression,~,not,0,1
+                evalOperator1Operand %$expression,~,not,0,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,**,pow,0
+                evalOperator2Operands %$expression,**,power,0,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,*,mul,1
+                evalOperator2Operands %$expression,*,mul,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression, / ,div,1
+                evalOperator2Operands %$expression,/,div,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,//,mod,1
+                evalOperator2Operands %$expression,//,mod,1,0
+                %xdefine %$expression __1
+                evalOperator1Operand %$expression,--,dec,0,0,1
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression, - ,sub,1
+                evalOperator1Operand %$expression,++,inc,0,0,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression, + ,add,1
+                evalOperator1Operand %$expression,-,neg,0,1,1
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,<<,sal,1
+                evalOperator2Operands %$expression,-,sub,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,>>,sar,1
+                evalOperator2Operands %$expression,+,add,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression, != ,nEq,1
+                evalOperator2Operands %$expression,<<,sal,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression, == ,eq,1
+                evalOperator2Operands %$expression,>>,sar,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,>=,greaterEq,1
+                evalOperator2Operands %$expression,!=,nEq,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,<=,lowerEq,1
+                evalOperator2Operands %$expression,==,eq,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,>,greater,1
+                evalOperator2Operands %$expression,>=,greaterEq,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,<,lower,1
+                evalOperator2Operands %$expression,<=,lowerEq,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression, & ,and,1
+                evalOperator2Operands %$expression,>,greater,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression, ^ ,xor,1
+                evalOperator2Operands %$expression,<,lower,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression, | ,or,1
+                evalOperator2Operands %$expression,&,and,1,0
                 %xdefine %$expression __1
 
-                evalOperator1Operand %$expression,!,bnot,0,1
+                evalOperator2Operands %$expression,^,xor,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,&&,bAnd,1
+                evalOperator2Operands %$expression,|,or,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,^^,bXor,1
+                evalOperator1Operand %$expression,!,bnot,0,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,||,bOr,1
+                evalOperator2Operands %$expression,&&,bAnd,1,0
+                %xdefine %$expression __1
+
+                evalOperator2Operands %$expression,^^,bXor,1,0
+                %xdefine %$expression __1
+
+                evalOperator2Operands %$expression,||,bOr,1,0
                 %xdefine %$expression __1
 
 

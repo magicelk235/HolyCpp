@@ -33,11 +33,12 @@ _start:
     new qword sourceFD
     new qword destFD
     new byte sourcePath[255]
-    new byte fileBuf[32768]
+    new qword filePointer
+    new qword fileSize
 
     
     cmp qword [rsp], 2
-    jne .usage ;argc != 2
+    jne usage ;argc != 2
 
     ; get argv[1]
     mov rbx, [rsp+16]
@@ -62,8 +63,9 @@ _start:
     mov rax,@sourcePath
     callp open,rax,"r",sourceFD
 
-    mov rax,@fileBuf
-    callp read,sourceFD,rax,-1
+    callp mmap,sourceFD,"r",filePointer
+    callp fstat,sourceFD,"s",fileSize
+    callp close,sourceFD
 
     mov rax,@destPath
     callp open,rax,"w+",destFD
@@ -71,14 +73,16 @@ _start:
     mov rax,@startData
     callp write,destFD,rax,-1
 
-    mov rax,@fileBuf
-    callp write,destFD,rax,-1
+    mov rax,1
+    mov rdi,destFD
+    mov rsi,filePointer
+    mov rdx,fileSize
+    syscall
 
     mov rax,@endData
     callp write,destFD,rax,-1
 
     callp close,destFD
-    callp close,sourceFD
 
     ; run nasm
     mov rax,@nasmPath
@@ -91,7 +95,7 @@ _start:
     callp run,rax,rbx,rcx,rdx,rdi,rsi,r8,r15
 
     cmp r15,0
-    jne .failed
+    jne failed
 
     ; run linker
     mov rax,@linkerPath
@@ -108,14 +112,14 @@ _start:
     xor rdi,rdi
     syscall
 
-.usage:
+usage:
     mov rax,@usageMessage
     callp print,rax
     omov rax,60
     mov rdi,1
     syscall
     
-.failed:
+failed:
     mov rax, @failMessage
     callp print,rax
     omov rax,60

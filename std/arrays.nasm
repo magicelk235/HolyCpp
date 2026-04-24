@@ -53,7 +53,10 @@
             resr %2,%%base
         %endif
         lsd %%index,r
-        movSize r,__1,8,__2
+        %xdefine %%indexPtr __1
+        %xdefine %%indexSize __2
+        isInputSigned %%index
+        movSize r,%%indexPtr,8,%%indexSize,__1
         %xdefine %%offset %%base+%[r]*%%size+arraySizeOffset
     %endif
 

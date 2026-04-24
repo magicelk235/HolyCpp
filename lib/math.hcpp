@@ -70,3 +70,158 @@ func frand(float start, float stop)>1
     addsd xmm0,[addr(start)]
     return xmm0
 end
+
+func toInt(float x)>1
+    hold rax
+    cvttsd2si rax,qword [addr(x)]
+    return rax
+end
+
+func toFloat(qword x)>1
+    hold xmm0
+    cvtsi2sd xmm0,qword [addr(x)]
+    return xmm0
+end
+
+func cos(float x)>1
+    fld qword [addr(x)]
+    fcos
+    fstp qword [addr(x)]
+end
+
+func sin(float x)>1
+    fld qword [addr(x)]
+    fsin
+    fstp qword [addr(x)]
+end
+
+func tan(float x)>1
+    fld qword [addr(x)]
+    fptan
+    fstp qword [addr(x)]
+    fstp qword [addr(x)]
+end
+
+func cot(float x)>1
+    hold xmm0,xmm1
+    fld qword [addr(x)]
+    fld qword [addr(x)]
+    fsincos
+    fstp qword [addr(argc)]
+    fstp qword [addr(x)]
+    mov xmm0,[addr(x)]
+    mov xmm1,[addr(argc)]
+    divsd xmm1,xmm0
+    return xmm1
+end
+
+func arctan(float x)>1
+    fld1
+    fld qword [addr(x)]
+    fpatan
+    fstp qword [addr(x)]
+end
+
+; asin(x) = atan2(x, sqrt(1-x^2))
+func arcsin(float x)>1
+    fld qword [addr(x)]
+    fld st0
+    fmul st0,st0 ;x^2
+    fld1
+    fsubrp st1 ;1-x^2
+    fsqrt
+    fpatan
+    fstp qword [addr(x)]
+end
+
+; acos(x) = atan2(sqrt(1-x^2), x)
+func arccos(float x)>1
+    fld qword [addr(x)]
+    fld st0
+    fmul st0,st0 ;x^2
+    fld1
+    fsubrp st1 ;1-x^2
+    fsqrt
+    fxch
+    fpatan
+    fstp qword [addr(x)]
+end
+
+; arccot(x) = pi/2 - arctan(x)
+func arccot(float x)>1
+    fld qword [addr(x)]
+    fld1
+    fpatan
+    fstp qword [addr(x)] ;arctan(x)
+    fldpi
+    fld1
+    fld1
+    faddp st1 ;2
+    fdivp st1 ;pi/2
+    fsub qword [addr(x)] ;pi/2 - arctan(x)
+    fstp qword [addr(x)]
+end
+
+func pi()>1
+    fldpi
+    fstp qword [addr(argc)]
+end
+
+; log(a,b) = log2(b)/log2(a)
+func log(float base,float x)>1
+    hold xmm0,xmm1
+    fld1
+    fld qword [addr(base)]
+    fyl2x
+    fstp qword [addr(base)]
+
+    fld1
+    fld qword [addr(x)]
+    fyl2x
+    fstp qword [addr(x)]
+    mov xmm0,x
+    mov xmm1,base
+    divsd xmm0,xmm1
+    return xmm0
+end
+
+; x^n=2**(n*log2(x))
+func pow(float base,float exp)>1
+    hold xmm0,xmm1
+    fld1
+    fld qword [addr(base)]
+    fyl2x
+    fstp qword [addr(base)] ;log2(base)
+    mov xmm0,base
+    mulsd xmm0,[addr(exp)] ;n*log2(base)
+
+    roundsd xmm1,xmm0,1 ;integer part
+    subsd xmm0,xmm1 ;fractional part
+    mov base,xmm1 ;store integer part
+    mov exp,xmm0 ;store fractional part
+
+    fld qword [addr(exp)] ;load fractional
+    f2xm1
+    fld1
+    faddp st1 ;st0 = 2^(frac)
+
+    fld qword [addr(base)] ;load integer part into st1
+    fxch ;swap st0=2**frac, st1=int
+    fscale ;st0 = 2**frac * 2**int = 2**(frac+int)
+    fstp st1
+
+    fstp qword [addr(exp)]
+    return exp
+end
+
+
+func align2(qword number,qword exp)>1 ; (num + exp - 1) & (-exp)
+    hold rax,rbx
+    mov rax,number
+    add rax,[addr(exp)]
+    dec rax
+    mov rbx,exp
+    neg rbx
+    and rax,rbx
+    return rax
+end

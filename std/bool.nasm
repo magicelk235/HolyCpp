@@ -32,7 +32,8 @@
         lxd %2,rax
         cmp rax,__1
     %endif
-    retm 0
+    isInputUnsigned %1,%2,%3
+    retm __1!=0
 %endmacro
 
 %macro eq 3

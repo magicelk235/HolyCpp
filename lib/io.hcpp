@@ -312,7 +312,6 @@ func scanf(byte format)>1
     mov rsi,@readBuf
 
     callp scan,rsi
-    dec qword [rsi]
     callp sscanf,byte [addr(format)],rsi,rsi
     return rsi
     .char:

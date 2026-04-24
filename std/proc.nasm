@@ -34,7 +34,7 @@
         retm rbp+%eval(args(procName)+8)
     %endif
 
-    %assign __args_%[procName] %eval(args(procName)+align(%3*%%size) + (%3>1)*8)
+    %assign __args_%[procName] %eval(args(procName)+__macro_align8(%3*%%size) + (%3>1)*8)
     retm rbp+%eval(args(procName)+8)
 %endmacro
 
@@ -58,7 +58,7 @@
                     %xdefine %%addr __1
                     
                     %assign %%byteSize times(%1)*size(%1)
-                    %assign %%totalByteSize align(%%byteSize)+8
+                    %assign %%totalByteSize __macro_align8(%%byteSize)+8
                     %assign %%rspOffset %%totalByteSize
                     %assign %%arrayOffset 8
 
@@ -74,12 +74,24 @@
                     %endrep
                     sub rsp,%%totalByteSize
                 %else
-                    lxd %1,rbp
-                    push qword __1
+                    sizeByToken %1
+                    %if __1==8
+                        lxd %1,rbp
+                        push qword __1
+                    %else
+                        mov rax,%1
+                        push rax
+                    %endif
                 %endif
             %else
-                lxd %1,rbp
-                push qword __1
+                sizeByToken %1
+                %if __1==8
+                    lxd %1,""
+                    push qword __1
+                %else
+                mov rax,%1
+                push rax
+                %endif
             %endif
         %elif isReg(%1)
             %if size(%1)!=8
@@ -157,7 +169,6 @@
 %macro proc 1-2
     %push 
     %define procName %1
-    
     %macro %[procName] 1-*
         call %?%{1:-1}
     %endmacro
@@ -176,10 +187,10 @@
     %endif
     %define inProc 1
     new arg qword argc
-    newRef argv,8,addr(argc),0,0,1
+    newRef argv,8,addr(argc),0,0,1,1
 %endmacro
 
-%define align(x) %eval(((x)/8 + (((x) % 8)!=0))*8)
+%define __macro_align8(x) %eval(((x)/8 + (((x) % 8)!=0))*8)
 
 ; smart call, automatically handles pushing args and poping outs
 ; callp(procName,args,out)
@@ -202,16 +213,16 @@
         %if isRef(%1)
             %if isTokenIndex(%1)
                 splitIndex %1
-                %assign %%totalArgsSize %%totalArgsSize+align(size(__1))
+                %assign %%totalArgsSize %%totalArgsSize+__macro_align8(size(__1))
             %else
                 %if times(%1)>1
-                    %assign %%totalArgsSize %%totalArgsSize+align(times(%1)*size(%1)+8)
+                    %assign %%totalArgsSize %%totalArgsSize+__macro_align8(times(%1)*size(%1)+8)
                 %else
-                    %assign %%totalArgsSize %%totalArgsSize+align(size(%1))
+                    %assign %%totalArgsSize %%totalArgsSize+__macro_align8(size(%1))
                 %endif
             %endif
         %elifnum size(%1)
-            %assign %%totalArgsSize %%totalArgsSize+align(size(%1))
+            %assign %%totalArgsSize %%totalArgsSize+__macro_align8(size(%1))
         %else
             %assign %%totalArgsSize %%totalArgsSize+8
         %endif
@@ -223,7 +234,7 @@
     ; procname,arg1,arg2,out1,out2
 
     ; outs - total args
-    %assign %%neededSpace max(%%outs+procClean(%%procName)-%%totalArgsSize,0)
+    %assign %%neededSpace __macro_max(%%outs+procClean(%%procName)-%%totalArgsSize,0)
 
     ; arg2,arg1,rax,count
 
@@ -273,7 +284,7 @@
     %if heldSize(procName)
         pop held(procName)
     %endif
-    %assign __procClean_%[procName] max(args(procName) - outs(procName),0)
+    %assign __procClean_%[procName] __macro_max(args(procName) - outs(procName),0)
     pop rbp
     ret procClean(procName)
     %pop
@@ -284,7 +295,7 @@
 ; return's values from a proc
 ; return(out[])
 %macro return 0-*
-    %assign %%args max(args(procName),outs(procName))+8
+    %assign %%args __macro_max(args(procName),outs(procName))+8
 
     %assign %%stackcount 0
     %assign %%currentOut 0
@@ -312,13 +323,20 @@
     %assign %%currentOut 1
     %assign %%out 0
     %rep %%outc
-        eval %%o_%[%%currentOut]
-        %assign forceMov 1
-        mov [rbp+%eval(%%args-%%out*8)],__1,8
-        %assign forceMov 0
-        endEval
+        %ifnum %%o_%[%%currentOut]
+            %assign forceMov 1
+            mov [rbp+%eval(%%args-%%out*8)],%%o_%[%%currentOut],8
+            %assign forceMov 0
+        %else
+            eval %%o_%[%%currentOut]
+            %assign forceMov 1
+            mov [rbp+%eval(%%args-%%out*8)],__1,8
+            %assign forceMov 0
+            endEval
+        %endif
         %assign %%out %%out+1
         %assign %%currentOut %%currentOut+1
     %endrep
     jmp %[procName]exit
+    resetOld
 %endmacro

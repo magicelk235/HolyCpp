@@ -69,15 +69,16 @@ end
 ### Variables
 
 ```nasm
-new qword x = 42           ; local/global(based on the context) integer
+new qword x = 42           ; local/global integer
 new qword y                ; local/global uninitialized
 new global qword counter   ; global (BSS)
 new const byte msg[] = "hello\n"   ; constant string
 new qword arr[10]          ; array of 10 qwords
 new byte buf[1024]         ; byte buffer
 new float e = 2.7182818285 ; local/global float64
+new ~qword count = 1123456 ; local/global unsigned qword
 ```
-
+Use `int`,`long`,`char`,`short`,`bool` instead of sizes for builtin types
 ### Assignment and expressions
 
 ```nasm
@@ -124,12 +125,16 @@ loop 15
     ; ...
 end
 
+for x = 5,x>0,x--
+    ; ...
+end
+
 while x < 10
-    x = x+1
+    x++
 end
 
 dowhile x < 10
-    x = x+1
+    x++
 end
 ```
 
@@ -176,18 +181,18 @@ include <io>
 
 func main(@byte args)>1
     new qword x
-    x = scanf("i")
+    x = scanf('i')
     return 0
 end
 ```
 
-Supported format specifiers: `"i"` integer, `"f"` float, `"c"` char, `"s"` string, `"b"` bool.
+Supported format specifiers: `'i'` integer,`'u'` unsigned integer, `'f'` float, `'c'` char, `'s'` string, `'b'` bool.
 
 ---
 
 ### Control Flow
 
-`if`/`else` and a `while` countdown loop.
+`if`/`else` and `while`/`for`/`loop`.
 
 ```nasm
 include <io>
@@ -199,7 +204,7 @@ func main(@byte args)>1
         printf("%i is bigger than 0\n",x)
         while x>0
             printf("%i\n,x)
-            x = x-1
+            x--
         end
     else
         printf("%i is smaller than 0\n",x)
@@ -242,7 +247,7 @@ include <io>
 
 func main(@byte args)>1
     new float x = 3.1415926535
-    x = x * scanf("f")
+    x *= scanf("f")
     printf("The result is %f\n", x)
     return 0
 end
@@ -260,10 +265,9 @@ include <io>
 func main(@byte args)>1
     new qword x = 0
     new qword arr[10]
-    while x < arr[#]/8
+    for x=0,x < arr[#]/8,x++
         arr[x] = scanf("i")
         printf("arr[%i] = %i\n", x, arr[x])
-        x = x+1
     end
     return 0
 end
@@ -286,6 +290,7 @@ func main(@byte args)>1
     openfb()
     @image = openbmp("image.bmp")
     drawbmp(@image, 1, 1)
+    blit()
 
     return 0
 end

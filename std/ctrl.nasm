@@ -9,7 +9,6 @@
         %xdefine %%expression %%expression %+ : %+ %1
         %rotate 1
     %endrep
-
     %push
     setBlockType "if"
     %$ifcheck:
@@ -82,6 +81,9 @@
     %else
         %ifidn %$blockType,"while"
             jmp %$check
+        %elifidn %$blockType,"for"
+            %$instruction
+            jmp %$check
         %elifidn %$blockType,"if"
             %$next%[%$blockCount]:
             jmp %$end
@@ -108,7 +110,44 @@
     setBlockType "while"
     %assign %$blockCount 0
     %$check:
+    resetOld
     eval %%expression
+    mov r15,__1
+    endEval
+    cmp r15,false
+    je %$end
+%endmacro
+
+%macro for 1-*
+    %assign %%stackcount 0
+    %assign %%current 0
+    %rep %0
+        %if %%stackcount==0
+            %assign %%current %%current+1
+            %xdefine %%e_%[%%current] %1
+        %else
+            %xdefine %%e_%[%%current] %%e_%[%%current]%+:%+%1
+        %endif
+        findInToken %1,"("
+        %assign %%stackcount %%stackcount+__1
+        findInToken %1,"["
+        %assign %%stackcount %%stackcount+__1
+
+        findInToken %1,"]"
+        %assign %%stackcount %%stackcount-__1   
+        findInToken %1,")"
+        %assign %%stackcount %%stackcount-__1
+        %rotate 1
+    %endrep
+
+    %%e_1
+    %push
+    %xdefine %$instruction %%e_3
+    setBlockType "for"
+    %assign %$blockCount 0
+    %$check:
+    resetOld
+    eval %%e_2
     mov r15,__1
     endEval
     cmp r15,false
@@ -175,7 +214,7 @@
         new arg %%lastArg
     %endif
 
-    %assign __procClean_%[%%name] max(args(%%name) - outs(%%name),0)
+    %assign __procClean_%[%%name] __macro_max(args(%%name) - outs(%%name),0)
 %endmacro
 
 %assign inCall 0
@@ -190,7 +229,6 @@
     %endif
 %endmacro
 
-; call(1,2,3,4)
 %macro call 1-*
     %if nCall
         call %1

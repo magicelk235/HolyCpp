@@ -9,7 +9,7 @@
             resr %2
             omov r,%%const
             sizeByToken %2
-            retm r,min(__1,8)
+            retm r,__macro_min(__1,8)
             %exitmacro
         %endif
 
@@ -86,9 +86,13 @@
     retm isRef(%1)
 %endmacro
 
-%macro resetOld 0
+%macro resetOldAutoMov 0
     %define oldAutomovDest 0
     %define oldAutomovSrc 0
+%endmacro
+
+%macro resetOld 0
+    resetOldAutoMov
     %define oldMovDest 0
     %define oldMovSrc 0
 %endmacro
@@ -96,8 +100,14 @@
 
 
 ; moves that works with any given size to any given size
-; movSize(dest,src,ds,ss)
-%macro movSize 4
+; movSize(dest,src,ds,ss,signed)
+%macro movSize 5
+    %if %5
+        %xdefine %%ext sx
+    %else
+        %xdefine %%ext zx
+    %endif
+
     %if %3 = 16 && %4 = 16 ; checks if both dest and src are xmm
         movdqu %1, %2
     %elif %3 = 16
@@ -117,18 +127,34 @@
             omov sizename(%3) %1, sizename(%3) %2
         %elif isReg(%1)
             %if %4 != 4
-                movsx sizename(%3) %1, sizename(%4) %2
+                mov%+%%ext sizename(%3) %1, sizename(%4) %2
             %else
-                movsxd qword %1, dword %2
+                %if %5
+                    movsxd qword %1, dword %2
+                %else
+                    omov reg(4,%[group(%1)]), dword %2
+                %endif
             %endif
         %else
-            resr s:%3,%2
-            %if %3 != 4
-                movsx r, sizename(%4) %2
+            %if %5
+                resr s:%3,%2
+                %if %3 != 4
+                    mov%+%%ext r, sizename(%4) %2
+                %else
+                    mov%+%%ext%+d r, dword %2
+                %endif
+                omov %1,r
             %else
-                movsxd r, dword %2
+                %if %4 != 4
+                    resr s:%3,%2
+                    movzx sizename(%3) r, sizename(%4) %2
+                    omov %1,r
+                %else
+                    subToken %1,0,-2
+                    omov dword __1+4], 0
+                    omov dword %1, dword %2
+                %endif
             %endif
-            omov %1,r
         %endif
     %else
         %if isReg(%2)
@@ -142,11 +168,10 @@
 
 ; automov(dest,src,?ds,?ss)
 %macro automov 2-4
-    %xdefine %%0 %0
     lxd %1,%2
     %xdefine %%dest __1
 
-    %if %%0 >= 3
+    %if %0 >= 3
         %xdefine %%ds %3
     %else
         %xdefine %%ds __2
@@ -155,10 +180,14 @@
     lxd %2,%1
     %xdefine %%src __1
 
-    %if %%0 == 4
+    %if %0 == 4
         %xdefine %%ss %4
     %elifnum __2
-        %xdefine %%ss __2
+        %if __2==0
+            %xdefine %%ss %%ds
+        %else
+            %xdefine %%ss __2
+        %endif
     %else
         %xdefine %%ss %%ds
     %endif
@@ -175,7 +204,8 @@
 
     %xdefine oldAutomovDest %%dest
     %xdefine oldAutomovSrc %%src
-    movSize %%dest,%%src,%%ds,%%ss
+    isInputSigned %1,%2
+    movSize %%dest,%%src,%%ds,%%ss,__1
     %if isXmmReg(%2)
         setFloat %1,1
     %endif
@@ -189,11 +219,27 @@
     isMemory %2
     %xdefine %%is2Memory __1
     %if %%is1Memory && %%is2Memory
-        automov rax,%2
-        %if %0==2
-            automov %1,rax
+        
+        %if %0 == 3
+            %assign %%size1 %3
         %else
-            automov %1,rax,%3
+            sizeByToken %1
+            %assign %%size1 __1
+        %endif
+
+        %if %0 == 4
+            %assign %%size2 %4
+        %else
+            sizeByToken %2
+            %assign %%size2 __1
+        %endif
+        %xdefine %%r reg(__macro_max(%%size1,%%size2),0)
+        automov %%r,%2
+        resetOldAutoMov
+        %if %0==2
+            automov %1,%%r
+        %else
+            automov %1,%%r,%3
         %endif
     %else
         automov %{1:-1}
@@ -319,6 +365,14 @@
     ; ref
     %else
         splitIndex %1
-        retm size(__1)
+        %ifnum size(__1)
+            retm size(__1)
+        %elif isTokenFloat(__1) 
+            retm 8
+        %elifnum %1
+            retm numSize(%1)
+        %else
+            retm 0
+        %endif
     %endif
 %endmacro

@@ -31,6 +31,25 @@ func wait(qword pid, byte mode)
     syscall
 end
 
+func sleep(float seconds)
+    new qword time[2]
+    new float nanosec = 1000000000.0
+    mov xmm0,seconds
+    cvttsd2si rax,xmm0
+    mov time[0],rax
+    cvtsi2sd xmm1,rax
+    subsd xmm0,xmm1
+    mulsd xmm0,[addr(nanosec)]
+    cvttsd2si rax,xmm0
+    mov time[1],rax
+
+    mov rax,35
+    mov rdi,@time
+    add rdi,8
+    xor rsi,rsi
+    syscall
+end
+
 func run(@byte path)>1
     hold rax,rbx,rcx,rdx
     new qword exeArgv[255]

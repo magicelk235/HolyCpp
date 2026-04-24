@@ -114,7 +114,7 @@
     %endif
 %endmacro
 
-; sal(src,count,dest) - arithmetic shift left
+; sal(src,count,dest) arithmetic shift left
 %macro sal 2-3
     %if %0 == 2
         sal %1,%2
@@ -144,32 +144,39 @@
     %endif
 %endmacro
 
-; sar(src,count,dest) - arithmetic shift right
+; sar(src,count,dest) arithmetic shift right
 %macro sar 2-3
     %if %0 == 2
         sar %1,%2
         %exitmacro
     %endif
 
+    isInputUnsigned %1,%2,%3
+    %if __1
+        %xdefine %%instr shr
+    %else
+        %xdefine %%instr sar
+    %endif
+
     %if size(%3) == 1
         mov al,%1
         mov cl,%2
-        sar al,cl
+        %%instr al,cl
         mov %3,al
     %elif size(%3) == 2
         mov ax,%1
         mov cl,%2
-        sar ax,cl
+        %%instr ax,cl
         mov %3,ax
     %elif size(%3) == 4
         mov eax,%1
         mov cl,%2
-        sar eax,cl
+        %%instr eax,cl
         mov %3,eax
     %else
         mov rax,%1
         mov cl,%2
-        sar rax,cl
+        %%instr rax,cl
         mov %3,rax
     %endif
 %endmacro

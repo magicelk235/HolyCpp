@@ -41,13 +41,12 @@
         %xdefine %%path %strcat("lib/",%substr(%%path,2,%strlen(%%path)-2))
     %endif
 
-    ; Check for "." using only built-ins; append ".hcpp" if absent
     %strlen %%pathlen %%path
     %assign %%hasDot 0
     %assign %%j 1
     %rep %%pathlen
-        %substr %%gch %%path %%j,1
-        %ifidni %%gch,"."
+        %substr %%sub %%path %%j,1
+        %ifidni %%sub,"."
             %assign %%hasDot 1
             %exitrep
         %endif
@@ -59,8 +58,22 @@
         %strlen %%pathlen %%path
     %endif
 
-    %ifnidn %[__imported_%+%tok(%%path)],0
-        %xdefine __imported_%[%tok(%%path)] 0
+    %xdefine %%pathtok ""
+    %assign %%i 1
+    %rep %%pathlen
+        %substr %%sub %%path %%i,1
+        %ifidni %%sub,"."
+            %xdefine %%pathtok %strcat(%%pathtok,"__")
+        %elifidn %%sub,"/"
+            %xdefine %%pathtok %strcat(%%pathtok,"_")
+        %else
+            %xdefine %%pathtok %strcat(%%pathtok,%%sub)
+        %endif
+        %assign %%i %%i+1
+    %endrep
+    %deftok %%pathtok %%pathtok
+    %ifnidn __included_%+%%pathtok,1
+        %xdefine __included_%[%%pathtok] 1
         retm %%path
     %else
         retm -1
@@ -100,6 +113,24 @@
         %exitmacro
     %endif
     retm 1
+%endmacro
+
+%define isStringDigit(x) %eval(x>='0' && x<='9')
+
+%macro isNumber 1
+    toStr %1
+    %xdefine %%str __1
+    %strlen %%len %%str
+    %assign %%i 1
+    %rep %%len
+        %substr %%sub %%str %%i,1
+        %if !(%%i==1&&%isidn(%%sub,"-")||isStringDigit(%%sub)||%isidn(%%sub,'.'))
+            retm 0
+            %exitrep
+        %endif
+        retm 1
+        %assign %%i %%i+1
+    %endrep
 %endmacro
 
 ; toStr(token)
@@ -313,6 +344,7 @@
 %define isTokenFloat(x) %eval(!%isnum(0%+x)&&!%isid(x))
 %define isTokenNum(x) %eval(%isnum(x)||isTokenFloat(x)||%isstr(x))
 %define numType(x) isTokenFloat(x)
+%define numSize(x) %eval((1 + ((x < -(1<<7)) || (x > (1<<7)-1)) * 1 + ((x < -(1<<15)) || (x > (1<<15)-1)) * 2 + ((x < -(1<<31)) || (x > (1<<31)-1)) * 4))
 
 %macro tokenLen 1
     toStr %1
@@ -330,6 +362,38 @@
         %if isRef(%1)
             splitIndex %1
             %if float(__1)
+                retm 1
+                %exitrep
+            %endif
+        %endif
+        retm 0
+    %rotate 1
+    %endrep
+%endmacro
+
+%macro isInputUnsigned 1-*
+    %rep %0
+        %if isRef(%1)
+            splitIndex %1
+            %if !signed(__1)
+                retm 1
+                %exitrep
+            %endif
+        %endif
+        retm 0
+    %rotate 1
+    %endrep
+%endmacro
+
+%macro isInputSigned 1-*
+    %rep %0
+        %ifnum %1
+            %if %1<0
+                retm 1
+            %endif
+        %elif isRef(%1)
+            splitIndex %1
+            %if signed(__1)
                 retm 1
                 %exitrep
             %endif
@@ -499,5 +563,5 @@
     %endrep
 %endmacro
 
-%define max(x,y) %eval((x>=y)*(x)+(x<y)*(y))
-%define min(x,y) %eval( (x>=y)*(y)+(x<y)*(x))
+%define __macro_max(x,y) %eval((x>=y)*(x)+(x<y)*(y))
+%define __macro_min(x,y) %eval( (x>=y)*(y)+(x<y)*(x))
