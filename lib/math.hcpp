@@ -225,3 +225,79 @@ func align2(qword number,qword exp)>1 ; (num + exp - 1) & (-exp)
     and rax,rbx
     return rax
 end
+
+func max(qword start)>1
+    hold rax,rbx,rcx
+    mov rcx,start ; rcx = biggest
+    mov rbx,@argc
+    mov rax,[rbx]
+    shr rax,3
+
+    .loop:
+    cmp [rbx+8],rcx
+    jle .notBigger
+    mov rcx,[rbx+8]
+    .notBigger:
+    add rbx,8
+    dec rax
+    jnz .loop
+    return rcx
+end
+
+func min(qword start)>1
+    hold rax,rbx,rcx
+    mov rcx,start ; rcx = smallest
+    mov rbx,@argc
+    mov rax,[rbx]
+    shr rax,3
+
+    .loop:
+    cmp [rbx+8],rcx
+    jge .notSmaller
+    mov rcx,[rbx+8]
+    .notSmaller:
+    add rbx,8
+    dec rax
+    jnz .loop
+    return rcx
+end
+
+func fmax(float start)>1
+    hold rax,rbx,xmm0
+    mov xmm0,start
+    mov rbx,@argc
+    mov rax,[rbx]
+    shr rax,3
+
+    .loop:
+    ucomisd xmm0,[rbx+8]
+    jae .notBigger
+    mov xmm0,[rbx+8]
+    .notBigger:
+    add rbx,8
+    dec rax
+    jnz .loop
+
+    mov rax,xmm0
+    return rax
+end
+
+func fmin(float start)>1
+    hold rax,rbx,xmm0
+    mov xmm0,start ; rcx = biggest
+    mov rbx,@argc
+    mov rax,[rbx]
+    shr rax,3
+
+    .loop:
+    ucomisd xmm0,[rbx+8]
+    jbe .notBigger
+    mov xmm0,[rbx+8]
+    .notBigger:
+    add rbx,8
+    dec rax
+    jnz .loop
+
+    mov rax,xmm0
+    return rax
+end
