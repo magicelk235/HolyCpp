@@ -32,6 +32,7 @@ func wait(qword pid, byte mode)
 end
 
 func sleep(float seconds)
+    hold rax,rdi,rsi,xmm0,xmm1
     new qword time[2]
     new float nanosec = 1000000000.0
     mov xmm0,seconds

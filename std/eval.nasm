@@ -344,7 +344,7 @@
         %xdefine %%rightOperand __1
         subString %str(%1),%%i,%eval(%%i+1)
         %xdefine %%beforeRightOperand __1
-        %assign %%isOperandNum isStringDigit(%%beforeRightOperand)&&%isidn(%%rightOperand,"-")
+        %assign %%isOperandConstNeg isStringDigit(%%beforeRightOperand)&&%isidn(%%rightOperand,"-")&&(%%i==%2+%%size+1)
 
         isStringOpen %%rightOperand
         %if __1
@@ -357,7 +357,7 @@
         %endif
         %if !%%stringMode
             isSymbol %%rightOperand
-            %if __1&&!%%isOperandNum
+            %if __1&&!%%isOperandConstNeg
                 %assign %%stop %%i-1
                 %exitrep
             %elif %%i==%%max
@@ -387,20 +387,13 @@
     %rep 100000
         subString %str(%1),%%i,%eval(%%i+1)
         %xdefine %%leftOperand __1
-        %if %%i != 0
-            subString %str(%1),%eval(%%i-1),%%i
-            %xdefine %%beforeLeftOperand __1
-        %else
-            %xdefine %%beforeLeftOperand ""
-        %endif
+        subString %str(%1),%eval(%%i-1),%%i
+        %xdefine %%beforeLeftOperand __1
 
-        subString %str(%1),%eval(%%i+1),%eval(%%i+2)
-        %xdefine %%afterLeftOperand __1
-        %if %strlen(%%beforeLeftOperand) == 1 && %strlen(%%beforeLeftOperand) == 1 && %strlen(%%afterLeftOperand) == 1 
-            %assign %%isOperandNum isStringDigit(%%leftOperand)&& %isidn(%%beforeLeftOperand,"-")
-            %assign %%isOperandNum %%isOperandNum||(isStringDigit(%%afterLeftOperand)&&%isidn(%%leftOperand,"-"))
+        %if %strlen(%%beforeLeftOperand) == 1 && %strlen(%%leftOperand) == 1
+            %assign %%isOperandConstNeg isStringDigit(%%leftOperand)&& %isidn(%%beforeLeftOperand,"-")
         %else
-            %assign %%isOperandNum 0
+            %assign %%isOperandConstNeg 0
         %endif
         isStringOpen %%leftOperand
         %if __1
@@ -413,7 +406,10 @@
         %endif
         %if !%%stringMode
             isSymbol %%leftOperand
-            %if __1&&!%%isOperandNum
+            %if %%isOperandConstNeg
+                %assign %%start %%i-1
+                %exitrep
+            %elif __1
                 %assign %%start %%i+1
                 %exitrep
             %elif %%i<%%min
