@@ -1,7 +1,7 @@
 func equal(@byte array1,@byte array2)>1
     hold rsi,rdi,rcx
     mov rsi,@array1
-    mov rdi,[addr(array1)]
+    mov rdi,@array2
     mov rcx,[rsi]
     add rcx,8
     repe cmpsb
