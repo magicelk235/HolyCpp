@@ -35,9 +35,6 @@ Assemble and link it
 ``````bash
 nasm -f elf64 hcpp.nasm
 ld -o hcpp hcpp.o
-# optional for cli
-nasm -f elf64 cli.nasm
-ld -o cli cli.o
 ``````
 
 ## Usage
@@ -45,10 +42,7 @@ ld -o cli cli.o
 ### Run the compiler
 
 ```bash
-# direct
 ./hcpp <path>
-# cli
-./cli
 ```
 
 ### Writing a program
@@ -78,7 +72,9 @@ new byte buf[1024]         ; byte buffer
 new float e = 2.7182818285 ; local/global float64
 new ~qword count = 1123456 ; local/global unsigned qword
 ```
+
 Use `int`,`long`,`char`,`short`,`bool` instead of sizes for builtin types
+
 ### Assignment and expressions
 
 ```nasm
@@ -155,11 +151,9 @@ List literals use `,` as a separator: `[1,2,3,4]`
 
 ---
 
-## Examples
+## Syntax Examples
 
 ### Hello World
-
-Print a string to stdout.
 
 ```nasm
 include <io>
@@ -174,8 +168,6 @@ end
 
 ### Reading Input
 
-Read an integer from stdin with `scanf`.
-
 ```nasm
 include <io>
 
@@ -186,13 +178,11 @@ func main(@byte args)>1
 end
 ```
 
-Supported format specifiers: `'i'` integer,`'u'` unsigned integer, `'f'` float, `'c'` char, `'s'` string, `'b'` bool.
+Supported format specifiers: `'i'` integer, `'u'` unsigned integer, `'f'` float, `'c'` char, `'s'` string, `'b'` bool.
 
 ---
 
 ### Control Flow
-
-`if`/`else` and `while`/`for`/`loop`.
 
 ```nasm
 include <io>
@@ -203,7 +193,7 @@ func main(@byte args)>1
     if x>0
         printf("%i is bigger than 0\n",x)
         while x>0
-            printf("%i\n,x)
+            printf("%i\n",x)
             x--
         end
     else
@@ -216,8 +206,6 @@ end
 ---
 
 ### Functions
-
-Declare a function with multiple arguments and a return value.
 
 ```nasm
 include <io>
@@ -240,8 +228,6 @@ The `>1` suffix declares the number of return values. Arguments are separated by
 
 ### Floating Point
 
-Prefix a type with float instead of size. Here, pi is multiplied by a user-supplied float.
-
 ```nasm
 include <io>
 
@@ -256,8 +242,6 @@ end
 ---
 
 ### Arrays
-
-Declare a fixed-size array, fill it element by element, and print each value.
 
 ```nasm
 include <io>
@@ -277,9 +261,144 @@ end
 
 ---
 
-### Image (Framebuffer)
+## Library Examples
 
-Open a BMP file and draw it directly to the Linux framebuffer.
+### Math (`<math>`)
+
+```nasm
+include <io>
+include <math>
+
+func main(@byte args)>1
+    new float x = 0.5
+    new float result
+
+    result = sin(x)
+    printf("sin(%f) = %f\n", x, result)
+
+    result = sqrt(2.0)
+    printf("sqrt(2) = %f\n", result)
+
+    new qword r = rand(1, 100)
+    printf("random 1-100: %i\n", r)
+
+    return 0
+end
+```
+
+Available: `sin`, `cos`, `tan`, `arcsin`, `arccos`, `arctan`, `sqrt`, `abs`, `fabs`, `floor`, `ceil`, `pow`, `log`, `ln`, `exp`, `rand`, `frand`, `toInt`, `toFloat`, `max`, `min`. Constants: `pi`, `e`.
+
+---
+
+### Strings (`<string>`)
+
+```nasm
+include <io>
+include <string>
+
+func main(@byte args)>1
+    new byte buf[32]
+    new qword num = 12345
+
+    intToStr(num, @buf)
+    printf("number as string: %s\n", @buf)
+
+    new float f = 3.14159
+    floatToStr(f, @buf)
+    printf("float as string: %s\n", @buf)
+
+    new byte input[] = "42"
+    num = strToInt(@input)
+    printf("string as number: %i\n", num)
+
+    return 0
+end
+```
+
+Available: `strToInt`, `intToStr`, `unsignedToStr`, `strToFloat`, `floatToStr`, `strToBool`, `boolToStr`, `sprintf`, `sscanf`.
+
+---
+
+### Arrays (`<arrays>`)
+
+```nasm
+include <io>
+include <arrays>
+
+func main(@byte args)>1
+    new qword arr[10]
+    new qword i
+
+    fill(@arr, 0, 8)
+    arr[0] = 42
+    arr[5] = 99
+
+    if contains(@arr, 99, 8)
+        i = find(@arr, 99, 8)
+        printf("found 99 at index %i\n", i)
+    end
+
+    new qword arr2[10]
+    copy(@arr2, @arr)
+
+    return 0
+end
+```
+
+Available: `fill`, `find`, `contains`, `count`, `copy`, `equal`.
+
+---
+
+### File I/O (`<io>`)
+
+```nasm
+include <io>
+
+func main(@byte args)>1
+    new qword fd
+    new byte buf[1024]
+
+    fd = open("test.txt", "r")
+    read(fd, @buf, -1)
+    printf("file contents: %s\n", @buf)
+    close(fd)
+
+    fd = open("output.txt", "w")
+    write(fd, "Hello from HolyCpp!\n", -1)
+    close(fd)
+
+    return 0
+end
+```
+
+File modes: `"r"` read, `"w"` write (create/truncate), `"a"` append, `"r+"` read/write, `"w+"` read/write (create), `"a+"` read/append.
+
+Available: `open`, `close`, `read`, `write`, `fstat`, `mmap`, `ioctl`, `print`, `printf`, `scan`, `scanf`, `exit`.
+
+---
+
+### Process (`<process>`)
+
+```nasm
+include <io>
+include <process>
+
+func main(@byte args)>1
+    print("waiting 1.5 seconds...\n")
+    sleep(1.5)
+
+    new qword code = run("/bin/ls", "-l")
+    printf("ls exited with code %i\n", code)
+
+    return 0
+end
+```
+
+Available: `sleep`, `run`, `wait`.
+
+---
+
+### Graphics (`<graphics>`)
 
 ```nasm
 include <graphics>
@@ -295,3 +414,22 @@ func main(@byte args)>1
     return 0
 end
 ```
+
+---
+
+### Terminal Colors (`<io>`)
+
+```nasm
+include <io>
+
+func main(@byte args)>1
+    printf("%FRed text!\n", 0xFF0000)
+    printf("%FGreen text!\n", 0x00FF00)
+    printf("%F%BWhite on blue!\n", 0xFFFFFF, 0x0000FF)
+
+    print("\x1b[0m")
+    return 0
+end
+```
+
+Color format: `0xRRGGBB`. Use `%F` for foreground (text) color, `%B` for background color.
