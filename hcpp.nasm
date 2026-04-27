@@ -40,28 +40,12 @@ _start:
     cmp qword [rsp], 2
     jne usage ;argc != 2
 
-    ; get argv[1]
-    mov rbx, [rsp+16]
 
-    ; strlen(argv[1])
-    xor rcx, rcx
-    .loop:
-    cmp byte [rbx+rcx], 0
-    je .done
-    inc rcx
-    jmp .loop
-    .done:
-
-
-    mov rax,@sourcePath
-    mov [rax],rcx
-    mov rdi,rax
-    add rdi,8
-    mov rsi,rbx
-    rep movsb
-
-    mov rax,@sourcePath
-    callp open,rax,"r",sourceFD
+    xor rsi,rsi
+    mov rdi,[rsp+16]
+    mov rax,2
+    syscall
+    mov sourceFD,rax
 
     callp mmap,sourceFD,"r",filePointer
     callp fstat,sourceFD,"s",fileSize

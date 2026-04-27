@@ -22,7 +22,7 @@ _start:
     callp print,rax
 
     callp scanf,"c",al
-    cmp al,10 ; scan clears \n 
+    cmp al,10
     je .compile
 
     cmp byte al,"i"

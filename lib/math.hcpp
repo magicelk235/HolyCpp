@@ -162,10 +162,38 @@ func arccot(float x)>1
     fstp qword [addr(x)]
 end
 
-func pi()>1
-    fldpi
-    fstp qword [addr(argc)]
+func ln(float x)>1
+    fldln2
+    fld qword [addr(x)]
+    fyl2x
+    fstp qword [addr(x)]
 end
+
+func exp(float x)>1
+    hold xmm0,xmm1
+    
+    fldln2
+    fstp qword [addr(argc)]
+    mov xmm0,x
+    mulsd xmm0,[addr(argc)] ;n*log2(base)
+
+    roundsd xmm1,xmm0,1 ;integer part
+    subsd xmm0,xmm1 ;fractional part
+    mov x,xmm1 ;store integer part
+    mov argc,xmm0 ;store fractional part
+
+    fld qword [addr(argc)] ;load fractional
+    f2xm1
+    fld1
+    faddp st1 ;st0 = 2^(frac)
+
+    fld qword [addr(x)] ;load integer part into st1
+    fxch ;swap st0=2**frac, st1=int
+    fscale ;st0 = 2**frac * 2**int = 2**(frac+int)
+    fstp st1
+    fstp qword [addr(x)]
+end
+
 
 ; log(a,b) = log2(b)/log2(a)
 func log(float base,float x)>1
@@ -186,21 +214,21 @@ func log(float base,float x)>1
 end
 
 ; x^n=2**(n*log2(x))
-func pow(float base,float exp)>1
+func pow(float base,float x)>1
     hold xmm0,xmm1
     fld1
     fld qword [addr(base)]
     fyl2x
     fstp qword [addr(base)] ;log2(base)
     mov xmm0,base
-    mulsd xmm0,[addr(exp)] ;n*log2(base)
+    mulsd xmm0,[addr(x)] ;n*log2(base)
 
     roundsd xmm1,xmm0,1 ;integer part
     subsd xmm0,xmm1 ;fractional part
     mov base,xmm1 ;store integer part
-    mov exp,xmm0 ;store fractional part
+    mov x,xmm0 ;store fractional part
 
-    fld qword [addr(exp)] ;load fractional
+    fld qword [addr(x)] ;load fractional
     f2xm1
     fld1
     faddp st1 ;st0 = 2^(frac)
@@ -210,17 +238,15 @@ func pow(float base,float exp)>1
     fscale ;st0 = 2**frac * 2**int = 2**(frac+int)
     fstp st1
 
-    fstp qword [addr(exp)]
-    return exp
+    fstp qword [addr(x)]
 end
 
-
-func align2(qword number,qword exp)>1 ; (num + exp - 1) & (-exp)
+func align2(qword number,qword x)>1 ; (num + x - 1) & (-x)
     hold rax,rbx
     mov rax,number
-    add rax,[addr(exp)]
+    add rax,[addr(x)]
     dec rax
-    mov rbx,exp
+    mov rbx,x
     neg rbx
     and rax,rbx
     return rax
@@ -301,3 +327,6 @@ func fmin(float start)>1
     mov rax,xmm0
     return rax
 end
+
+%define e 2.7182818284590452354
+%define pi 3.14159265358979323846
