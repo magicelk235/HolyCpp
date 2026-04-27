@@ -23,7 +23,7 @@
 
     %ifidn %%index,#
         %if listPointer(%%ref)
-            retm addr(%ref),8
+            retm addr(%%ref),8
             %exitmacro
         %else
             lra %%ref,%2,"",0

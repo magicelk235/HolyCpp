@@ -97,7 +97,7 @@ func unsignedToStr(qword ~num, @byte str)
     mov rbx,@str
     add rbx,arraySizeOffset
     mov r15,num
-    mov r14,10000000000000000000 ; 10**20
+    mov r14,10000000000000000000 ; 10**19
     mov rcx,20
     mov r12,0
     
