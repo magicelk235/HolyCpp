@@ -189,7 +189,7 @@ include <io>
 
 func main(@byte args)>1
     new qword x
-    x = scanf("i")
+    x = scanf('i')
     if x>0
         printf("%i is bigger than 0\n",x)
         while x>0
@@ -233,7 +233,7 @@ include <io>
 
 func main(@byte args)>1
     new float x = 3.1415926535
-    x *= scanf("f")
+    x *= scanf('f')
     printf("The result is %f\n", x)
     return 0
 end
@@ -250,7 +250,7 @@ func main(@byte args)>1
     new qword x = 0
     new qword arr[10]
     for x=0,x < arr[#]/8,x++
-        arr[x] = scanf("i")
+        arr[x] = scanf('i')
         printf("arr[%i] = %i\n", x, arr[x])
     end
     return 0
@@ -358,12 +358,12 @@ func main(@byte args)>1
     new qword fd
     new byte buf[1024]
 
-    fd = open("test.txt", "r")
+    fd = open("test.txt", 'r')
     read(fd, @buf, -1)
     printf("file contents: %s\n", @buf)
     close(fd)
 
-    fd = open("output.txt", "w")
+    fd = open("output.txt", 'w')
     write(fd, "Hello from HolyCpp!\n", -1)
     close(fd)
 
@@ -371,7 +371,7 @@ func main(@byte args)>1
 end
 ```
 
-File modes: `"r"` read, `"w"` write (create/truncate), `"a"` append, `"r+"` read/write, `"w+"` read/write (create), `"a+"` read/append.
+File modes: `'r'` read, `'w'` write (create/truncate), `'a'` append, `'r+'` read/write, `'w+'` read/write (create), `'a+'` read/append.
 
 Available: `open`, `close`, `read`, `write`, `fstat`, `mmap`, `ioctl`, `print`, `printf`, `scan`, `scanf`, `exit`.
 
@@ -426,8 +426,6 @@ func main(@byte args)>1
     printf("%FRed text!\n", 0xFF0000)
     printf("%FGreen text!\n", 0x00FF00)
     printf("%F%BWhite on blue!\n", 0xFFFFFF, 0x0000FF)
-
-    print("\x1b[0m")
     return 0
 end
 ```
