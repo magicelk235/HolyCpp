@@ -365,14 +365,18 @@
     ; ref
     %else
         splitIndex %1
-        %ifnum size(__1)
-            retm size(__1)
-        %elif isTokenFloat(__1) 
-            retm 8
-        %elifnum %1
-            retm numSize(%1)
+        %xdefine %%tok __1
+        %ifnum size(%%tok)
+            retm size(%%tok)
         %else
-            retm 0
+            isTokenFloat %%tok
+            %if __1
+                retm 8
+            %elifnum %1
+                retm numSize(%1)
+            %else
+                retm 0
+            %endif
         %endif
     %endif
 %endmacro

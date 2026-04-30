@@ -341,9 +341,41 @@
 
 %define emptyToken @@EMPTY@@
 %define isEmpty(token) (%isidn(token,emptyToken)||%isidn(token,"")||%isidn(token,"@@EMPTY@@"))
-%define isTokenFloat(x) %eval(!%isnum(0%+x)&&!%isid(x))
-%define isTokenNum(x) %eval(%isnum(x)||isTokenFloat(x)||%isstr(x))
-%define numType(x) isTokenFloat(x)
+%macro isTokenFloat 1
+    toStr %1
+    %xdefine %%str __1
+    %strlen %%len %%str
+    %assign %%dotCount 0
+    %assign %%valid 1
+    %assign %%i 1
+    %rep %%len
+        %substr %%sub %%str %%i,1
+        %ifidn %%sub,'.'
+            %assign %%dotCount %%dotCount+1
+        %elif !isStringDigit(%%sub)
+            %assign %%valid 0
+        %endif
+        %assign %%i %%i+1
+    %endrep
+    %if %%dotCount != 1 || !%%valid || %%len < 3
+        retm 0
+    %else
+        retm 1
+    %endif
+%endmacro
+
+%macro isTokenNum 1
+    isTokenFloat %1
+    %if __1 || %isnum(%1) || %isstr(%1)
+        retm 1
+    %else
+        retm 0
+    %endif
+%endmacro
+
+%macro numType 1
+    isTokenFloat %1
+%endmacro
 %define numSize(x) %eval((1 + ((x < -(1<<7)) || (x > (1<<7)-1)) * 1 + ((x < -(1<<15)) || (x > (1<<15)-1)) * 2 + ((x < -(1<<31)) || (x > (1<<31)-1)) * 4))
 
 %macro tokenLen 1
@@ -354,7 +386,8 @@
 
 %macro isInputFloat 1-*
     %rep %0
-        %if isTokenFloat(%1)
+        isTokenFloat %1
+        %if __1
             retm 1
             %exitrep
         %endif
@@ -406,7 +439,8 @@
 ; converts a token to a number and return the type(0=int,1=float)
 ;TokenToNum(token)
 %macro TokenToNum 1
-    %if isTokenFloat(%1)
+    isTokenFloat %1
+    %if __1
         retm %eval(__float64__(%1)),1
     %elifnum %1
         retm %1,0
