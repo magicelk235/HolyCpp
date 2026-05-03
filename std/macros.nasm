@@ -115,6 +115,7 @@
     retm 1
 %endmacro
 
+%define isPow2(x) (((x)&((x)-1))==0)
 %define isStringDigit(x) %eval(x>='0' && x<='9')
 
 %macro isNumber 1
@@ -153,6 +154,7 @@
 ; __0 = count
 ; retm(outs)
 %macro retm 1-*
+    newList __@,%{1:-1}
     %xdefine __0 %0
     %assign %%i 1
     %rep %0
@@ -173,6 +175,20 @@
         %rotate 1
         %assign %%i %%i+1
     %endrep
+%endmacro
+
+ ; char, currentMode, currentType
+%macro updateStringMode 3
+    isStringOpen %1
+    %if __1
+        %if %2
+            retm (%3!=__2),%3
+        %else
+            retm 1,__2
+        %endif
+    %else
+        retm %2,%3
+    %endif
 %endmacro
 
 ; findInToken(token1,token2)->index
@@ -326,6 +342,33 @@
     %endrep
     retm %%count
 %endmacro
+
+; splitToken(token, spliter) -> splited tokens
+%macro splitToken 2
+    toStr %1
+    %xdefine %%token __1
+    toStr %2
+    %xdefine %%spliter __1
+    %strlen %%len %%spliter
+
+    newList %%parts
+
+    %rep 100000
+        findInToken %%token,%2
+        %if __1 == -1
+            listpush %%parts,%tok(%%token)
+            %exitrep
+        %endif
+        %assign %%i __1
+        subToken %%token,0,%%i
+        listpush %%parts,__1
+        
+        subToken %%token,%%i+%%len
+        %xdefine %%token __1
+    %endrep
+    retm %[%%parts]
+%endmacro
+
 ; subToken(token,start,stop?)->subtoken
 %macro subToken 2-3
     subString %{1:-1}
@@ -366,7 +409,11 @@
 
 %macro isTokenNum 1
     isTokenFloat %1
-    %if __1 || %isnum(%1) || %isstr(%1)
+    %if __1
+        retm 1
+    %elifnum %1
+        retm 1
+    %elifstr %1
         retm 1
     %else
         retm 0
@@ -384,30 +431,10 @@
     retm %%len
 %endmacro
 
-%macro isInputFloat 1-*
-    %rep %0
-        isTokenFloat %1
-        %if __1
-            retm 1
-            %exitrep
-        %endif
-
-        %if isRef(%1)
-            splitIndex %1
-            %if float(__1)
-                retm 1
-                %exitrep
-            %endif
-        %endif
-        retm 0
-    %rotate 1
-    %endrep
-%endmacro
-
 %macro isInputUnsigned 1-*
     %rep %0
         %if isRef(%1)
-            splitIndex %1
+            removeIndex %1
             %if !signed(__1)
                 retm 1
                 %exitrep
@@ -425,7 +452,7 @@
                 retm 1
             %endif
         %elif isRef(%1)
-            splitIndex %1
+            removeIndex %1
             %if signed(__1)
                 retm 1
                 %exitrep
@@ -470,15 +497,9 @@
 
     %rep %%len
         %substr %%sub %%str %%i,1
-        isStringOpen %%sub
-        %if __1
-            %if %%stringMode
-                %assign %%stringMode (%%stringType!=__2)
-            %else
-                %assign %%stringMode 1
-                %assign %%stringType __2
-            %endif
-        %endif
+        updateStringMode %%sub, %%stringMode, %%stringType
+        %assign %%stringMode __1
+        %assign %%stringType __2
         %if !%isidni(%%sub," ")||%%stringMode
             %xdefine %%new %strcat(%%new,%%sub)
         %endif
@@ -544,11 +565,9 @@
     %xdefine %%startIndex __1
 
     retm -1,-1
-
     %if %%startIndex == -1
         %exitmacro
     %endif
-
     %assign %%count 1
 
     %xdefine %%endIndex -1
@@ -572,15 +591,9 @@
 
     %rep %%loopTimes
         %substr %%sub %%mainStr %%i,%%pareLen
-        isStringOpen %%sub
-        %if __1
-            %if %%stringMode
-                %assign %%stringMode (%%stringType!=__2)
-            %else
-                %assign %%stringMode 1
-                %assign %%stringType __2
-            %endif
-        %endif
+        updateStringMode %%sub, %%stringMode, %%stringType
+        %assign %%stringMode __1
+        %assign %%stringType __2
         %if !%%stringMode
             %ifidni %%sub,%%endStr
                 %assign %%count %%count-1
