@@ -1,10 +1,10 @@
 ;lsd
 %macro lsd 2
     ; const number check
-    %if isTokenNum(%1)
+    isTokenNum %1
+    %if __1
         TokenToNum %1
         %assign %%const __1
-        setFloat %2,__2
         %if !(isNumInSize(%%const,4) || isReg(%2))||isXmmReg(%2)
             resr %2
             omov r,%%const
@@ -233,13 +233,54 @@
             sizeByToken %2
             %assign %%size2 __1
         %endif
-        %xdefine %%r reg(__macro_max(%%size1,%%size2),0)
-        automov %%r,%2
-        resetOldAutoMov
-        %if %0==2
-            automov %1,%%r
+        %if isPow2(%%size1)&&isPow2(%%size2)
+            %xdefine %%r reg(__macro_max(%%size1,%%size2),0)
+            automov %%r,%2
+            resetOldAutoMov
+            %if %0==2
+                automov %1,%%r
+            %else
+                automov %1,%%r,%3
+            %endif
         %else
-            automov %1,%%r,%3
+            addrOf %1,"","",0
+            %xdefine %%dest __1
+            addrOf %2,%%dest,"",0
+            %xdefine %%src __1
+            %assign %%copySize __macro_min(%%size1,%%size2)
+            %assign %%offset 0
+
+            %rep %%copySize/16
+                movdqu xmm0,[%%src+%%offset]
+                movdqu [%%dest+%%offset],xmm0
+                %assign %%offset %%offset+16
+            %endrep
+            %assign %%copySize %%copySize % 16
+
+            %rep %%copySize/8
+                omov r8,[%%src+%%offset]
+                omov [%%dest+%%offset],r8
+                %assign %%offset %%offset+8
+            %endrep
+            %assign %%copySize %%copySize % 8
+
+            %rep %%copySize/4
+                omov r8d,[%%src+%%offset]
+                omov [%%dest+%%offset],r8d
+                %assign %%offset %%offset+4
+            %endrep
+
+            %assign %%copySize %%copySize % 4
+            %rep %%copySize/2
+                mov r8w,[%%src+%%offset]
+                mov [%%dest+%%offset],r8w
+                %assign %%offset %%offset+2
+            %endrep
+
+            %if %%copySize % 2
+                mov r8b,[%%src+%%offset]
+                mov [%%dest+%%offset],r8b
+            %endif
         %endif
     %else
         automov %{1:-1}
@@ -300,57 +341,62 @@
         %assign %%realLen %%realLen+__1
 
         addrOf %1,rbx,"",0
-        omov qword [__1],%%realLen
         %assign __times_%1 %%realLen
         %assign %%special 0
         %assign %%i 1
         %rep %%len
             %substr %%char %%str %%i
+            %define %%addr __1+%eval(%%i-1)
             %if %%special
                 %if %%char == "n"
-                    omov byte [__1 + %eval(%%i-1 + arraySizeOffset)],10
+                    omov byte [%%addr],10
                 %elif %%char == "a"
-                    omov byte [__1 + %eval(%%i-1 + arraySizeOffset)],7
+                    omov byte [%%addr],7
                 %elif %%char == "b"
-                    omov byte [__1 + %eval(%%i-1 + arraySizeOffset)],8
+                    omov byte [%%addr],8
                 %elif %%char == "v"
-                    omov byte [__1 + %eval(%%i-1 + arraySizeOffset)],11
+                    omov byte [%%addr],11
                 %elif %%char == "f"
-                    omov byte [__1 + %eval(%%i-1 + arraySizeOffset)],12
+                    omov byte [%%addr],12
                 %elif %%char == "r"
-                    omov byte [__1 + %eval(%%i-1 + arraySizeOffset)],13
+                    omov byte [%%addr],13
                 %elif %%char == "\"
-                    omov byte [__1 + %eval(%%i-1 + arraySizeOffset)],92
+                    omov byte [%%addr],92
                 %elif %%char == "0"
-                    omov byte [__1 + %eval(%%i-1 + arraySizeOffset)],0
+                    omov byte [%%addr],0
                 %endif
                 %assign %%special 0
             %else
                 %if %%char == "\"
                     %assign %%special 1
                 %else
-                    omov byte [__1 + %eval(%%i-1 + arraySizeOffset)],%%char
+                    omov byte [%%addr],%%char
                 %endif
             %endif
             %assign %%i %%i+1
         %endrep
-        omov byte [__1 + %eval(%%i-1 + arraySizeOffset)],0
+        omov byte [%%addr],0
         %define inMov 0
         %exitmacro
     %endif
 
     isTokenArray %2
     %if __1
-        %push
-        splitArrayToTokens %2
+        splitArrayToElements %2
+        %xdefine %%elements __1
         addrOf %1,rax,"",0
-        %xdefine %%addr __1
-        %assign %%i 1
-        %rep %$__0
-            doubleMemoryMov [%%addr+%eval(size(%1)*(%%i-1)+ arraySizeOffset)],%$__%[%%i],size(%1)
+        %xdefine %%base __1
+        %if listPointer(%1)
+            %assign %%size 8
+        %else
+            %assign %%size size(%1)
+        %endif
+
+        %assign %%i 0
+        %rep listlen(%%elements)
+            doubleMemoryMov [%%base+%eval(%%size*%%i)],listIndex(%%elements,%%i),%%size
             %assign %%i %%i+1
         %endrep
-        %pop
         %define inMov 0
         %exitmacro
     %endif
@@ -364,7 +410,7 @@
         retm size(%1)
     ; ref
     %else
-        splitIndex %1
+        removeIndex %1
         %xdefine %%tok __1
         %ifnum size(%%tok)
             retm size(%%tok)

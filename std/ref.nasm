@@ -1,33 +1,31 @@
-%assign arraySizeOffset 8
-; set a ref to a float
-; setFloat(ref,value)
-%macro setFloat 2
-    %if ! isReg(%1)
-        splitIndex %1
-        %xdefine __float_%[__1] %2
-    %endif
-%endmacro
-
-; makes a new ref that store size,addr,depth,float,times,signed
-; newRef(ref's name,size,addr,depth,float,times,signed)
-%macro newRef 7
+; makes a new ref that store size,addr,depth,type,signed,shape...
+; newRef(name, size, addr, type, depth, extendsign, shape...)
+%macro newRef 7-*
     %assign __size_%1 %2 ;-> __size_name
     %xdefine __addr_%1 %3; -> __addr_name
-    %assign __depth_%1 %4
-    %assign __float_%1 %5
-    %assign __times_%1 %6
-    %assign __signed_%1 %7
+    %xdefine __type_%1 %4
+    %assign __depth_%1 %5
+    %assign __signed_%1 %6    
     %xdefine __ref_%1 1
     %xdefine __name %1
 
-    
-    %ifnmacro %1
+    %assign __totalSize_%1 8*(%5>0)+%2*(%5<=0)
+
+    newList __shape_%1
+    %rotate 6
+    %rep %0-6
+        %assign __totalSize_%[__name] totalSize(__name)*%1
+        listpush __shape_%[__name], %1
+        %rotate 1
+    %endrep
+
+    %ifnmacro %[__name]
         %macro %[__name] 1-*
             set %?%{1:-1}
         %endmacro
     %endif
 
-    %rep depth(%1)
+    %rep depth(%[__name])
         %xdefine __name @%+__name
         %ifnmacro %[__name]
             %macro %[__name] 1-*
@@ -35,11 +33,13 @@
             %endmacro
         %endif
     %endrep
+
 %endmacro
 
+%define totalSize(name) __totalSize_ %+ name
+%define type(name) __type_ %+ name
 %define depth(name) __depth_ %+ name
-%define times(name) __times_ %+ name
-%define float(name) __float_ %+ name
+%define shape(name) __shape_ %+ name
 %define addr(name) __addr_ %+ name
 %define signed(name) __signed_ %+ name
 %define isRef(x) %isnum(__ref_%+x)
@@ -89,8 +89,24 @@
     %endif
 %endmacro
 
+%assign inlea 0
+
+%macro olea 2
+    %if inlea
+        lea %1,%2
+    %else
+        lea %1,%2,0,0
+    %endif
+%endmacro
+
 ; ref/array,dest,depth
-%macro lea 2-3
+%macro lea 2-4
+    %if %0==4
+        lea %1,%2
+        %exitmacro
+    %endif
+
+    %assign inlea 1
     %if %0==2
         %assign %%depthOffset 0
     %else
@@ -110,6 +126,7 @@
         lea %2,[%1]
     %endif
     resetOld
+    %assign inlea 0
 %endmacro
 
 ; makes a new global .bss variable
@@ -122,13 +139,10 @@
     %endif
     %if %3==1
         __global_label_%1 resb %2
-        section .text
     %else
-        __global_label_%1 resb arraySizeOffset
-        resb %3*%%size
-        section .text
-        omov qword [__global_label_%1],%3*%%size
+        __global_label_%1 resb %3*%%size
     %endif
+    section .text
     retm __global_label_%1
 %endmacro
 
@@ -154,12 +168,10 @@
         %ifstr %5
             tokenCount %5,"\"
             %if __1!=0
-                %assign %%len %3*%2-__1
-                tokenCount %5,"\\"
-                __global_label_%1 dq %eval(%%len+__1)
                 %strlen %%len %5
                 %assign %%special 0
                 %assign %%i 1
+                __global_label_%1:
                 %rep %%len
                     %substr %%char %5 %%i
                     %if %%special
@@ -192,12 +204,11 @@
                 %endrep
 
             %else
-                __global_label_%1 dq %3*%2
-                db %5
+                __global_label_%1 db %5
             %endif
             db 0
         %else
-            __global_label_%1 dq %3*%2
+            __global_label_%1:
             %push
             splitArrayToTokens %5
             %assign %%i 1

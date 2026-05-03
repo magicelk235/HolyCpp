@@ -16,13 +16,7 @@
     %if %4>0
         %assign %%size 8
     %endif
-    %if %3==1
-        ress %%size
-    %else
-        ress %%size*%3
-        ress arraySizeOffset
-        omov qword [__1],%%size*%3
-    %endif
+    ress %%size*%3
 %endmacro
 
 ; custom arg in a proc
@@ -34,7 +28,7 @@
         retm rbp+%eval(args(procName)+8)
     %endif
 
-    %assign __args_%[procName] %eval(args(procName)+__macro_align8(%3*%%size) + (%3>1)*8)
+    %assign __args_%[procName] %eval(args(procName)+__macro_align8(%3*%%size))
     retm rbp+%eval(args(procName)+8)
 %endmacro
 
@@ -53,26 +47,53 @@
             %endif
         %elif isRef(%1)
             %if isDirectRef(%1)
-                %if times(%1)>1
+                %if listIndex(shape(%1),0)>1
                     addrOf %1,rax,"",0
                     %xdefine %%addr __1
-                    
-                    %assign %%byteSize times(%1)*size(%1)
-                    %assign %%totalByteSize __macro_align8(%%byteSize)+8
+
+                    %assign %%actualSize totalSize(%1)
+                    %assign %%totalByteSize __macro_align8(%%actualSize)
+                    %assign %%remainder %%actualSize % 8
                     %assign %%rspOffset %%totalByteSize
-                    %assign %%arrayOffset 8
+                    %assign %%arrayOffset 0
 
-                    ; mov the arrays size
-                    mov [rsp-%%rspOffset],[%%addr],8,8
-                    %assign %%rspOffset %%rspOffset-8
-                    
-
-                    %rep times(%1)
-                        mov [rsp-%%rspOffset],[%%addr+%%arrayOffset],size(%1),size(%1)
-                        %assign %%arrayOffset %%arrayOffset+size(%1)
-                        %assign %%rspOffset %%rspOffset-size(%1)
+                    %rep %%actualSize/16
+                        movdqu xmm0,[%%src+%%arrayOffset]
+                        movdqu [%%dest+%%rspOffset],xmm0
+                        %assign %%arrayOffset %%arrayOffset+16
+                        %assign %%rspOffset %%rspOffset-16
                     %endrep
+                    %assign %%actualSize %%actualSize % 16
+
+                    %rep %%actualSize/8
+                        omov rax,[%%src+%%arrayOffset]
+                        omov [%%dest+%%rspOffset],rax
+                        %assign %%arrayOffset %%arrayOffset+8
+                        %assign %%rspOffset %%rspOffset-8
+                    %endrep
+                    %assign %%actualSize %%actualSize % 8
+
+                    %rep %%actualSize/4
+                        omov eax,[%%src+%%arrayOffset]
+                        omov [%%dest+%%rspOffset],eax
+                           %assign %%arrayOffset %%arrayOffset+4
+                        %assign %%rspOffset %%rspOffset-4
+                    %endrep
+
+                    %assign %%actualSize %%actualSize % 4
+                    %rep %%actualSize/2
+                        mov ax,[%%src+%%arrayOffset]
+                        mov [%%dest+%%rspOffset],ax
+                        %assign %%arrayOffset %%arrayOffset+2
+                        %assign %%rspOffset %%rspOffset-2
+                    %endrep
+
+                    %if %%actualSize % 2
+                        mov al,[%%src+%%arrayOffset]
+                        mov [%%dest+%%rspOffset],al
+                    %endif
                     sub rsp,%%totalByteSize
+
                 %else
                     sizeByToken %1
                     %if __1==8
@@ -187,7 +208,7 @@
     %endif
     %define inProc 1
     new arg qword argc
-    newRef argv,8,addr(argc),0,0,1,1
+    newRef argv,8,addr(argc)+8,0,0,1,1
 %endmacro
 
 %define __macro_align8(x) %eval(((x)/8 + (((x) % 8)!=0))*8)
@@ -211,16 +232,8 @@
     %assign %%totalArgsSize 8 ; argc(8)
     %rep %%givenArgs
         %if isRef(%1)
-            %if isTokenIndex(%1)
-                splitIndex %1
-                %assign %%totalArgsSize %%totalArgsSize+__macro_align8(size(__1))
-            %else
-                %if times(%1)>1
-                    %assign %%totalArgsSize %%totalArgsSize+__macro_align8(times(%1)*size(%1)+8)
-                %else
-                    %assign %%totalArgsSize %%totalArgsSize+__macro_align8(size(%1))
-                %endif
-            %endif
+            removeIndex %1
+            %assign %%totalArgsSize %%totalArgsSize+__macro_align8(size(__1))
         %elifnum size(%1)
             %assign %%totalArgsSize %%totalArgsSize+__macro_align8(size(%1))
         %else
