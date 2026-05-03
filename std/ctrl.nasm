@@ -42,25 +42,6 @@
     je %$next%[%$blockCount]
 %endmacro 
 
-%macro loop 1-*
-    %push
-    %xdefine %%expression %1
-    %rotate 1
-    %rep %0-1
-        %xdefine %%expression %%expression %+ : %+ %1
-        %rotate 1
-    %endrep
-    setBlockType "loop"
-    %assign %$blockCount 0
-    push r14
-    eval %%expression
-    mov r14,__1
-    endEval
-    %$check:
-    cmp r14,0
-    je %$end
-%endmacro
-
 %macro break 0
     jmp %$end
 %endmacro
