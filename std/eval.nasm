@@ -816,78 +816,78 @@
                 evalOperator1Operand %$expression,@,lea,1,0,1
                 %xdefine %$expression __1
 
-                evalOperator1Operand %$expression,~,not,0,1,0
+                evalOperator1Operand %$expression,~,.not,0,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,**,power,0,0
+                evalOperator2Operands %$expression,**,.power,0,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,*,mul,1,0
+                evalOperator2Operands %$expression,*,.mul,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,/,div,1,0
+                evalOperator2Operands %$expression,/,.div,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,//,mod,1,0
+                evalOperator2Operands %$expression,//,.mod,1,0
                 %xdefine %$expression __1
-                evalOperator1Operand %$expression,--,dec,0,0,1
-                %xdefine %$expression __1
-
-                evalOperator1Operand %$expression,++,inc,0,0,0
+                evalOperator1Operand %$expression,--,.dec,0,0,1
                 %xdefine %$expression __1
 
-                evalOperator1Operand %$expression,-,neg,0,1,1
+                evalOperator1Operand %$expression,++,.inc,0,0,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,-,sub,1,0
+                evalOperator1Operand %$expression,-,.neg,0,1,1
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,+,add,1,0
+                evalOperator2Operands %$expression,-,.sub,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,<<,sal,1,0
+                evalOperator2Operands %$expression,+,.add,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,>>,sar,1,0
+                evalOperator2Operands %$expression,<<,.shl,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,!=,nEq,1,0
+                evalOperator2Operands %$expression,>>,.shr,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,==,eq,1,0
+                evalOperator2Operands %$expression,!=,.nequ,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,>=,greaterEq,1,0
+                evalOperator2Operands %$expression,==,.equ,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,<=,lowerEq,1,0
+                evalOperator2Operands %$expression,>=,.hequ,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,>,greater,1,0
+                evalOperator2Operands %$expression,<=,.lequ,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,<,lower,1,0
+                evalOperator2Operands %$expression,>,.high,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,&,and,1,0
+                evalOperator2Operands %$expression,<,.low,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,^,xor,1,0
+                evalOperator2Operands %$expression,&,.and,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,|,or,1,0
+                evalOperator2Operands %$expression,^,.xor,1,0
                 %xdefine %$expression __1
 
-                evalOperator1Operand %$expression,!,bnot,0,1,0
+                evalOperator2Operands %$expression,|,.or,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,&&,bAnd,1,0
+                evalOperator1Operand %$expression,!,.bnot,0,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,^^,bXor,1,0
+                evalOperator2Operands %$expression,&&,.band,1,0
                 %xdefine %$expression __1
 
-                evalOperator2Operands %$expression,||,bOr,1,0
+                evalOperator2Operands %$expression,^^,.bxor,1,0
+                %xdefine %$expression __1
+
+                evalOperator2Operands %$expression,||,.bor,1,0
                 %xdefine %$expression __1
 
 
