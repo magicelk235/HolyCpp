@@ -1,3 +1,4 @@
+; .set *
 ; .cmp *
 ; .equ *
 ; .nequ *
@@ -25,6 +26,7 @@
 ; .shr x
 ; .shl x
 
+%define __bool.set __int.set
 %define __bool.cmp __int.cmp
 %define __bool.equ __int.equ
 %define __bool.nequ __int.nequ

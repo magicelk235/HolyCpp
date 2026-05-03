@@ -1,0 +1,5 @@
+%include "std/types/bool.nasm"
+%include "std/types/char.nasm"
+%include "std/types/float.nasm"
+%include "std/types/int.nasm"
+%include "std/types/unint.nasm"

@@ -1,3 +1,4 @@
+; .set *
 ; .cmp *
 ; .equ *
 ; .nequ *
@@ -25,6 +26,7 @@
 ; .shr *
 ; .shl *
 
+%define __float.set __unint.set
 %define __float.not __unint.not
 %define __float.or __unint.or
 %define __float.xor __unint.xor

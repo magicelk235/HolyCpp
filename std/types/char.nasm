@@ -1,3 +1,4 @@
+; .set *
 ; .cmp *
 ; .equ *
 ; .nequ *
@@ -24,7 +25,8 @@
 ; .and *
 ; .shr *
 ; .shl *
-%define __char.cmp __int.cmp
+%define __bool.set __unint.set
+%define __char.cmp __unint.cmp
 %define __char.equ __unint.equ
 %define __char.nequ __unint.nequ
 %define __char.low __unint.low
@@ -39,9 +41,9 @@
 %define __char.inc __unint.inc
 %define __char.dec __unint.dec
 %define __char.pow __unint.pow
-%define __char.not __int.not
-%define __char.or __int.or
-%define __char.xor __int.xor
-%define __char.and __int.and
+%define __char.not __unint.not
+%define __char.or __unint.or
+%define __char.xor __unint.xor
+%define __char.and __unint.and
 %define __char.shr __unint.shr
 %define __char.shl __unint.shl

@@ -1,3 +1,4 @@
+; .set *
 ; .cmp *
 ; .equ *
 ; .nequ *
@@ -25,6 +26,7 @@
 ; .shr *
 ; .shl *
 
+%define __unint.set __int.set
 %define __unint.add __int.add
 %define __unint.sub __int.sub
 %define __unint.inc __int.inc
@@ -34,38 +36,10 @@
 %define __unint.and __int.and
 %define __unint.or __int.or
 %define __unint.shl __int.shl
-
-%macro __unint.cmp 3
-    %if size(%3) == 1
-        mov al,%1
-        lxd %2,al
-        cmp al,__1
-    %elif size(%3) == 2
-        mov ax,%1
-        lxd %2,ax
-        cmp ax,__1
-    %elif size(%3)==4
-        mov eax,%1
-        lxd %2,eax
-        cmp eax,__1
-    %else
-        mov rax,%1
-        lxd %2,rax
-        cmp rax,__1
-    %endif
-%endmacro
-
-%macro __unint.equ 3
-    __unint.cmp %1,%2,%3
-    sete al
-    mov %3,al
-%endmacro
-
-%macro __unint.nequ 3
-    __unint.cmp %1,%2,%3
-    setne al
-    mov %3,al
-%endmacro
+%define __unint.cmp __int.cmp
+%define __unint.equ __int.equ
+%define __unint.nequ __int.nequ
+%define __unint.pow __int.pow
 
 %macro __unint.low 3
     __unint.cmp %1,%2,%3
@@ -93,14 +67,14 @@
 
 %macro __unint.mul 3
     %if (%isnum(%2))
-        %if %2>0 && ((%2&(%2-1))==0)
+        %if %2>0 && isPow2(%2)
             __unint.shl %1,%eval(ilog2(%2)),%3
             %exitmacro
         %endif
     %endif
 
     %if (%isnum(%1))
-        %if %1>0 && ((%1&(%1-1))==0)
+        %if %1>0 && isPow2(%2)
             __unint.shl %2,%eval(ilog2(%1)),%3
             %exitmacro
         %endif
@@ -131,7 +105,7 @@
 
 %macro __unint.div 3
     %if (%isnum(%2))
-        %if %2>0 && ((%2&(%2-1))==0)
+        %if %2>0 && isPow2(%2)
             __unint.shr %1,%eval(ilog2(%2)),%3
             %exitmacro
         %endif
@@ -254,23 +228,4 @@
         shr rax,cl
         mov %3,rax
     %endif
-%endmacro
-
-; pow(var1,var2,dest)
-%macro __unint.pow 3
-    mov rcx,%2 ; times
-    mov rax,%1 ; var1
-    mov rdx,1
-
-    cmp rcx,0
-    je %%powLoopExit
-
-    %%powLoop:
-    
-    mul rdx,rax
-
-    dec rcx
-    jnz %%powLoop
-    %%powLoopExit:
-    mov %3,rdx
 %endmacro

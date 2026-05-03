@@ -1,3 +1,4 @@
+; .set *
 ; .cmp *
 ; .equ *
 ; .nequ *
@@ -26,6 +27,8 @@
 ; .shl *
 
 %use ifunc
+
+%define __int.set mov
 
 ; cmp(var1,var2,?dest)
 %macro __int.cmp 3
@@ -85,13 +88,6 @@
 %endmacro
 
 %macro __int.add 3
-    %ifidn %2,0
-        %exitmacro
-    %endif
-    %ifidn %1,0
-        %exitmacro
-    %endif
-
     %if size(%3) == 1
         mov al,%1
         lxd %2,al
@@ -145,14 +141,14 @@
 
 %macro __int.mul 3
     %if (%isnum(%2))
-        %if %2>0 && ((%2&(%2-1))==0)
+        %if %2>0 && isPow2(%2)
             sal %1,%eval(ilog2(%2)),%3     
             %exitmacro   
         %endif
     %endif
 
     %if (%isnum(%1))
-        %if %1>0 && ((%1&(%1-1))==0)
+        %if %1>0 && isPow2(%2)
             sal %2,%eval(ilog2(%1)),%3     
             %exitmacro
         %endif
@@ -184,7 +180,7 @@
 ; div(var1,var2,dest)
 %macro __int.div 3
     %if (%isnum(%2))
-        %if %2>0 && ((%2&(%2-1))==0)
+        %if %2>0 && isPow2(%2)
             sar %1,%eval(ilog2(%2)),%3
         %endif
     %endif
@@ -236,95 +232,9 @@
     %endif
 %endmacro
 
-; div(var1,var2,dest)
-%macro mod 3
-    isInputUnsigned %1,%2,%3
-    %if __1
-        %xdefine %%instr div
-    %else
-        %xdefine %%instr idiv
-    %endif
-    %if size(%3) == 1
-        mov al,%1
-        cbw 
-        lxd %2,al
-        %if %isnum(%2)
-            mov bl,%2
-            %%instr bl
-        %else
-            %%instr byte __1
-        %endif
-            
-        cmp ah,0
-        jge %%byteIsPos
-        add ah,__1
-        %%byteIsPos:
-        mov %3,ah
-    %elif size(%3) == 2
-        mov ax,%1
-        cwd
-        lxd %2,ax
-        %if %isnum(%2)
-            mov bx,%2
-            %%instr bx
-        %else
-            %%instr word __1
-        %endif
-    
-        cmp dx,0
-        jge %%wordIsPos
-        add dx,__1
-        %%wordIsPos:
-        mov %3,dx
-    %elif size(%3)==4
-        mov eax,%1
-        cdq
-        lxd %2,eax
-        %if %isnum(%2)
-            mov ebx,%2
-            %%instr ebx
-        %else
-            %%instr dword __1
-        %endif
-            
-        cmp edx,0
-        jge %%bwordIsPos
-        add edx,__1
-        %%bwordIsPos:
-        mov %3,edx
-    %else
-        mov rax,%1
-        cqo
-        lxd %2,rax
-        %if %isnum(%2)
-            mov rbx,%2
-            %%instr rbx
-        %else
-            %%instr qword __1
-        %endif
-            
-        cmp rdx,0
-        jge %%qwordIsPos
-        add rdx,__1
-        %%qwordIsPos:
-        mov %3,rdx
-    %endif
-%endmacro
-
 ; neg(src,?dest)
-%macro neg 1-2
-    %if %0 == 1
-        neg %1
-        %exitmacro
-    %endif
-
-    isInputFloat %1,%2
-    %if __1
-        mov xmm0,%1
-        pxor xmm1,xmm1
-        subsd xmm1,xmm0
-        mov %2,xmm1
-    %elif size(%2) == 1
+%macro __int.neg 1-2
+    %if size(%2) == 1
         mov al,%1
         neg al
         mov %2,al
