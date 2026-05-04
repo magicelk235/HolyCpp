@@ -42,42 +42,19 @@
     je %$next%[%$blockCount]
 %endmacro 
 
+%macro endif 0
+    %$next%[%$blockCount]:
+    jmp %$end
+    %$end:
+    %pop
+%endmacro
+
 %macro break 0
     jmp %$end
 %endmacro
 
 %macro continue 0
     jmp %$check
-%endmacro
-
-%macro end 0
-    %ifidn %$blockType,"proc"
-        endp
-    %elifidn %$blockType,"loop"
-        dec r14
-        jmp %$check
-        %$end:
-        pop r14
-        %pop
-    %else
-        %ifidn %$blockType,"while"
-            jmp %$check
-        %elifidn %$blockType,"for"
-            %$instruction
-            jmp %$check
-        %elifidn %$blockType,"if"
-            %$next%[%$blockCount]:
-            jmp %$end
-        %elifidn %$blockType,"dowhile"
-            eval %$expression
-            mov r15,__1
-            endEval
-            cmp r15,false
-            jne %$check
-        %endif
-        %$end:
-        %pop
-    %endif
 %endmacro
 
 %macro while 1-*
@@ -97,6 +74,10 @@
     endEval
     cmp r15,false
     je %$end
+%endmacro
+
+%macro endwhile 0
+    jmp %$check
 %endmacro
 
 %macro for 1-*
@@ -135,6 +116,11 @@
     je %$end
 %endmacro
 
+%macro endfor 0
+    %$instruction
+    jmp %$check
+%endmacro
+
 %macro dowhile 1-*
     %xdefine %%expression %1
     %rotate 1
@@ -149,6 +135,13 @@
     %$check:
 %endmacro
 
+%macro enddowhile 0
+    eval %$expression
+    mov r15,__1
+    endEval
+    cmp r15,false
+    jne %$check
+%endmacro
 ;func(arg)>111
 ;func()>1
 ;func(arg1, arg2, arg3)
@@ -198,79 +191,6 @@
     %assign __procClean_%[%%name] __macro_max(args(%%name) - outs(%%name),0)
 %endmacro
 
-%assign inCall 0
-%assign nCall 0
-
-%macro ocall 1
-    %if inCall
-        call %1
-    %else
-        %assign nCall 1
-        call %1
-    %endif
-%endmacro
-
-%macro call 1-*
-    %if nCall
-        call %1
-        %assign nCall 0
-        %exitmacro
-    %endif
-
-    %xdefine %%func %1
-    %rotate 1
-    %rep %0-1
-        %xdefine %%func %%func %+ : %+ %1
-        %rotate 1
-    %endrep
-
-    %assign inCall 1
-
-    findInToken %%func,(
-    %assign %%argsIndex __1
-    subToken %%func,0,%%argsIndex
-    %xdefine %%name __1
-    subToken %%func,%eval(%%argsIndex+1),-2
-    %xdefine %%args __1
-    %assign %%useArgs 0
-
-    %if !isEmpty(%%args)
-        eval %%args,tbp,1
-        %push
-        splitArrayToTokens [__1]
-        %if %$__0 != 0
-            %assign %%useArgs 1
-            %xdefine %%arglist %$__1
-            %assign %%i 2
-            %rep %$__0-1
-            %xdefine %%arglist %%arglist%+,%+ %[%$__ %+ %%i]
-                %assign %%i %%i+1
-            %endrep
-        %endif
-        %pop
-    %endif
-    
-    %assign %%useOuts 0
-    %if outs(%%name)>0
-        %assign %%useOuts 1
-        %xdefine %%outslist rax
-        %rep outs(%%name)/8 -1
-            %xdefine %%outslist %+ , %+ rax
-        %endrep
-    %endif
-    
-    %if %%useArgs
-        %if %%useOuts
-            callp %%name,%%arglist,%%outslist
-        %else
-            callp %%name,%%arglist
-        %endif
-    %elif %%useOuts
-        callp %%name,%%outslist
-    %else
-        callp %%name
-    %endif
-
-    endEval
-    %assign inCall 0
+%macro end 0
+    end%+%tok(%$blockType)
 %endmacro

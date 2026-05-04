@@ -343,6 +343,33 @@
     retm %%count
 %endmacro
 
+
+
+%macro joinBracketSplit 1
+    newList %%items
+    %assign %%stackcount 0
+    %assign %%current 0
+    %rep %0
+        %if %%stackcount==0
+            %assign %%current %%current+1
+            listset %%items,%%current,%1
+        %else
+            listset %%items,%%current,listIndex(%%items,%%current)%+:%+%1
+        %endif
+        findInToken %1,"("
+        %assign %%stackcount %%stackcount+__1
+        findInToken %1,"["
+        %assign %%stackcount %%stackcount+__1
+
+        findInToken %1,"]"
+        %assign %%stackcount %%stackcount-__1   
+        findInToken %1,")"
+        %assign %%stackcount %%stackcount-__1
+        %rotate 1
+    %endrep
+    retm %%items
+%endmacro
+
 ; splitToken(token, spliter) -> splited tokens
 %macro splitToken 2
     toStr %1

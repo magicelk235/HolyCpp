@@ -2,9 +2,7 @@
 ; ress(size) 
 %macro ress 1
     sub rsp,%1
-
     %assign __locals_%[procName] locals(procName)+%1
-    
     %assign %%offset heldSize(procName)+locals(procName)
     retm rbp-%%offset
 %endmacro
@@ -288,8 +286,8 @@
 %endmacro
 
 ; defines the end of a proc
-; endp
-%macro endp 0
+; endproc
+%macro endproc 0
     %[procName]exit:
     %if locals(procName)!=0
         add rsp, locals(procName)
@@ -352,4 +350,82 @@
     %endrep
     jmp %[procName]exit
     resetOld
+%endmacro
+
+
+%assign inCall 0
+%assign nCall 0
+
+%macro ocall 1
+    %if inCall
+        call %1
+    %else
+        %assign nCall 1
+        call %1
+    %endif
+%endmacro
+
+%macro call 1-*
+    %if nCall
+        call %1
+        %assign nCall 0
+        %exitmacro
+    %endif
+
+    %xdefine %%func %1
+    %rotate 1
+    %rep %0-1
+        %xdefine %%func %%func %+ : %+ %1
+        %rotate 1
+    %endrep
+
+    %assign inCall 1
+
+    findInToken %%func,(
+    %assign %%argsIndex __1
+    subToken %%func,0,%%argsIndex
+    %xdefine %%name __1
+    subToken %%func,%eval(%%argsIndex+1),-2
+    %xdefine %%args __1
+    %assign %%useArgs 0
+
+    %if !isEmpty(%%args)
+        eval %%args,tbp,1
+        %push
+        splitArrayToTokens [__1]
+        %if %$__0 != 0
+            %assign %%useArgs 1
+            %xdefine %%arglist %$__1
+            %assign %%i 2
+            %rep %$__0-1
+            %xdefine %%arglist %%arglist%+,%+ %[%$__ %+ %%i]
+                %assign %%i %%i+1
+            %endrep
+        %endif
+        %pop
+    %endif
+    
+    %assign %%useOuts 0
+    %if outs(%%name)>0
+        %assign %%useOuts 1
+        %xdefine %%outslist rax
+        %rep outs(%%name)/8 -1
+            %xdefine %%outslist %+ , %+ rax
+        %endrep
+    %endif
+    
+    %if %%useArgs
+        %if %%useOuts
+            callp %%name,%%arglist,%%outslist
+        %else
+            callp %%name,%%arglist
+        %endif
+    %elif %%useOuts
+        callp %%name,%%outslist
+    %else
+        callp %%name
+    %endif
+
+    endEval
+    %assign inCall 0
 %endmacro
