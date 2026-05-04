@@ -4,17 +4,17 @@
     isTokenNum %1
     %if __1
         TokenToNum %1
-        %assign %%const __1
-        %if !(isNumInSize(%%const,4) || isReg(%2))||isXmmReg(%2)
+        %assign %?const __1
+        %if !(isNumInSize(%?const,4) || isReg(%2))||isXmmReg(%2)
             resr %2
-            omov r,%%const
+            omov r,%?const
             sizeByToken %2
             retm r,__macro_min(__1,8)
             %exitmacro
         %endif
 
         sizeByToken %2
-        retm %%const,__1
+        retm %?const,__1
         %exitmacro
     %endif
 
@@ -27,11 +27,11 @@
 
     isPtr %1
     %if __1
-        %assign %%at __2
+        %assign %?at __2
         replaceToken %1,@,""
-        %xdefine %%ref __1
-        lra %%ref,%2,"",%%at
-        retm [__1],size(%%ref)
+        %xdefine %?ref __1
+        lra %?ref,%2,"",%?at
+        retm [__1],size(%?ref)
         %exitmacro
     %endif
 
@@ -103,9 +103,9 @@
 ; movSize(dest,src,ds,ss,signed)
 %macro movSize 5
     %if %5
-        %xdefine %%ext sx
+        %xdefine %?ext sx
     %else
-        %xdefine %%ext zx
+        %xdefine %?ext zx
     %endif
 
     %if %3 = 16 && %4 = 16 ; checks if both dest and src are xmm
@@ -127,7 +127,7 @@
             omov sizename(%3) %1, sizename(%3) %2
         %elif isReg(%1)
             %if %4 != 4
-                mov%+%%ext sizename(%3) %1, sizename(%4) %2
+                mov%+%?ext sizename(%3) %1, sizename(%4) %2
             %else
                 %if %5
                     movsxd qword %1, dword %2
@@ -139,9 +139,9 @@
             %if %5
                 resr s:%3,%2
                 %if %3 != 4
-                    mov%+%%ext r, sizename(%4) %2
+                    mov%+%?ext r, sizename(%4) %2
                 %else
-                    mov%+%%ext%+d r, dword %2
+                    mov%+%?ext%+d r, dword %2
                 %endif
                 omov %1,r
             %else
@@ -158,8 +158,8 @@
         %endif
     %else
         %if isReg(%2)
-            %xdefine %%group group(%2)
-            omov %1, reg(%3, %%group)
+            %xdefine %?group group(%2)
+            omov %1, reg(%3, %?group)
         %else
             omov %1, %2
         %endif
@@ -169,43 +169,43 @@
 ; automov(dest,src,?ds,?ss)
 %macro automov 2-4
     lxd %1,%2
-    %xdefine %%dest __1
+    %xdefine %?dest __1
 
     %if %0 >= 3
-        %xdefine %%ds %3
+        %xdefine %?ds %3
     %else
-        %xdefine %%ds __2
+        %xdefine %?ds __2
     %endif
 
     lxd %2,%1
-    %xdefine %%src __1
+    %xdefine %?src __1
 
     %if %0 == 4
-        %xdefine %%ss %4
+        %xdefine %?ss %4
     %elifnum __2
         %if __2==0
-            %xdefine %%ss %%ds
+            %xdefine %?ss %?ds
         %else
-            %xdefine %%ss __2
+            %xdefine %?ss __2
         %endif
     %else
-        %xdefine %%ss %%ds
+        %xdefine %?ss %?ds
     %endif
 
     %if !forceMov
-        %ifidn %%dest,%%src
+        %ifidn %?dest,%?src
             %exitmacro
-        %elif %isidn(%%dest,oldAutomovDest) && %isidn(%%src,oldAutomovSrc)
+        %elif %isidn(%?dest,oldAutomovDest) && %isidn(%?src,oldAutomovSrc)
             %exitmacro
-        %elif %isidn(%%src,oldAutomovDest) && %isidn(%%dest,oldAutomovSrc)
+        %elif %isidn(%?src,oldAutomovDest) && %isidn(%?dest,oldAutomovSrc)
             %exitmacro
         %endif
     %endif
 
-    %xdefine oldAutomovDest %%dest
-    %xdefine oldAutomovSrc %%src
+    %xdefine oldAutomovDest %?dest
+    %xdefine oldAutomovSrc %?src
     isInputSigned %1,%2
-    movSize %%dest,%%src,%%ds,%%ss,__1
+    movSize %?dest,%?src,%?ds,%?ss,__1
     %if isXmmReg(%2)
         setFloat %1,1
     %endif
@@ -214,72 +214,72 @@
 %macro doubleMemoryMov 2-4
 
     isMemory %1
-    %xdefine %%is1Memory __1
+    %xdefine %?is1Memory __1
 
     isMemory %2
-    %xdefine %%is2Memory __1
-    %if %%is1Memory && %%is2Memory
+    %xdefine %?is2Memory __1
+    %if %?is1Memory && %?is2Memory
         
         %if %0 == 3
-            %assign %%size1 %3
+            %assign %?size1 %3
         %else
             sizeByToken %1
-            %assign %%size1 __1
+            %assign %?size1 __1
         %endif
 
         %if %0 == 4
-            %assign %%size2 %4
+            %assign %?size2 %4
         %else
             sizeByToken %2
-            %assign %%size2 __1
+            %assign %?size2 __1
         %endif
-        %if isPow2(%%size1)&&isPow2(%%size2)
-            %xdefine %%r reg(__macro_max(%%size1,%%size2),0)
-            automov %%r,%2
+        %if isPow2(%?size1)&&isPow2(%?size2)
+            %xdefine %?r reg(__macro_max(%?size1,%?size2),0)
+            automov %?r,%2
             resetOldAutoMov
             %if %0==2
-                automov %1,%%r
+                automov %1,%?r
             %else
-                automov %1,%%r,%3
+                automov %1,%?r,%3
             %endif
         %else
             addrOf %1,"","",0
-            %xdefine %%dest __1
-            addrOf %2,%%dest,"",0
-            %xdefine %%src __1
-            %assign %%copySize __macro_min(%%size1,%%size2)
-            %assign %%offset 0
+            %xdefine %?dest __1
+            addrOf %2,%?dest,"",0
+            %xdefine %?src __1
+            %assign %?copySize __macro_min(%?size1,%?size2)
+            %assign %?offset 0
 
-            %rep %%copySize/16
-                movdqu xmm0,[%%src+%%offset]
-                movdqu [%%dest+%%offset],xmm0
-                %assign %%offset %%offset+16
+            %rep %?copySize/16
+                movdqu xmm0,[%?src+%?offset]
+                movdqu [%?dest+%?offset],xmm0
+                %assign %?offset %?offset+16
             %endrep
-            %assign %%copySize %%copySize % 16
+            %assign %?copySize %?copySize % 16
 
-            %rep %%copySize/8
-                omov r8,[%%src+%%offset]
-                omov [%%dest+%%offset],r8
-                %assign %%offset %%offset+8
+            %rep %?copySize/8
+                omov r8,[%?src+%?offset]
+                omov [%?dest+%?offset],r8
+                %assign %?offset %?offset+8
             %endrep
-            %assign %%copySize %%copySize % 8
+            %assign %?copySize %?copySize % 8
 
-            %rep %%copySize/4
-                omov r8d,[%%src+%%offset]
-                omov [%%dest+%%offset],r8d
-                %assign %%offset %%offset+4
-            %endrep
-
-            %assign %%copySize %%copySize % 4
-            %rep %%copySize/2
-                mov r8w,[%%src+%%offset]
-                mov [%%dest+%%offset],r8w
-                %assign %%offset %%offset+2
+            %rep %?copySize/4
+                omov r8d,[%?src+%?offset]
+                omov [%?dest+%?offset],r8d
+                %assign %?offset %?offset+4
             %endrep
 
-            %if %%copySize % 2
-                mov r8b,[%%src+%%offset]
-                mov [%%dest+%%offset],r8b
+            %assign %?copySize %?copySize % 4
+            %rep %?copySize/2
+                mov r8w,[%?src+%?offset]
+                mov [%?dest+%?offset],r8w
+                %assign %?offset %?offset+2
+            %endrep
+
+            %if %?copySize % 2
+                mov r8b,[%?src+%?offset]
+                mov [%?dest+%?offset],r8b
             %endif
         %endif
     %else
@@ -324,58 +324,58 @@
 
     tokenCount %2,@
     %if __1 != 0
-        %assign %%depth __1-1
+        %assign %?depth __1-1
         replaceToken %2,@,""
-        lea __1,%1,%%depth
+        lea __1,%1,%?depth
         %define inMov 0
         %exitmacro
     %endif
 
     %if isRef(%1)&&%isstr(%2)
-        %xdefine %%str %2
+        %xdefine %?str %2
 
-        %strlen %%len %%str
-        tokenCount %%str,"\"
-        %assign %%realLen %%len-__1
-        tokenCount %%str,"\\"
-        %assign %%realLen %%realLen+__1
+        %strlen %?len %?str
+        tokenCount %?str,"\"
+        %assign %?realLen %?len-__1
+        tokenCount %?str,"\\"
+        %assign %?realLen %?realLen+__1
 
         addrOf %1,rbx,"",0
-        %assign __times_%1 %%realLen
-        %assign %%special 0
-        %assign %%i 1
-        %rep %%len
-            %substr %%char %%str %%i
-            %define %%addr __1+%eval(%%i-1)
-            %if %%special
-                %if %%char == "n"
-                    omov byte [%%addr],10
-                %elif %%char == "a"
-                    omov byte [%%addr],7
-                %elif %%char == "b"
-                    omov byte [%%addr],8
-                %elif %%char == "v"
-                    omov byte [%%addr],11
-                %elif %%char == "f"
-                    omov byte [%%addr],12
-                %elif %%char == "r"
-                    omov byte [%%addr],13
-                %elif %%char == "\"
-                    omov byte [%%addr],92
-                %elif %%char == "0"
-                    omov byte [%%addr],0
+        %assign __times_%1 %?realLen
+        %assign %?special 0
+        %assign %?i 1
+        %rep %?len
+            %substr %?char %?str %?i
+            %define %?addr __1+%eval(%?i-1)
+            %if %?special
+                %if %?char == "n"
+                    omov byte [%?addr],10
+                %elif %?char == "a"
+                    omov byte [%?addr],7
+                %elif %?char == "b"
+                    omov byte [%?addr],8
+                %elif %?char == "v"
+                    omov byte [%?addr],11
+                %elif %?char == "f"
+                    omov byte [%?addr],12
+                %elif %?char == "r"
+                    omov byte [%?addr],13
+                %elif %?char == "\"
+                    omov byte [%?addr],92
+                %elif %?char == "0"
+                    omov byte [%?addr],0
                 %endif
-                %assign %%special 0
+                %assign %?special 0
             %else
-                %if %%char == "\"
-                    %assign %%special 1
+                %if %?char == "\"
+                    %assign %?special 1
                 %else
-                    omov byte [%%addr],%%char
+                    omov byte [%?addr],%?char
                 %endif
             %endif
-            %assign %%i %%i+1
+            %assign %?i %?i+1
         %endrep
-        omov byte [%%addr],0
+        omov byte [%?addr],0
         %define inMov 0
         %exitmacro
     %endif
@@ -383,19 +383,19 @@
     isTokenArray %2
     %if __1
         splitArrayToElements %2
-        %xdefine %%elements __1
+        %xdefine %?elements __1
         addrOf %1,rax,"",0
-        %xdefine %%base __1
+        %xdefine %?base __1
         %if listPointer(%1)
-            %assign %%size 8
+            %assign %?size 8
         %else
-            %assign %%size size(%1)
+            %assign %?size size(%1)
         %endif
 
-        %assign %%i 0
-        %rep listlen(%%elements)
-            doubleMemoryMov [%%base+%eval(%%size*%%i)],listIndex(%%elements,%%i),%%size
-            %assign %%i %%i+1
+        %assign %?i 0
+        %rep listlen(%?elements)
+            doubleMemoryMov [%?base+%eval(%?size*%?i)],listIndex(%?elements,%?i),%?size
+            %assign %?i %?i+1
         %endrep
         %define inMov 0
         %exitmacro
@@ -411,11 +411,11 @@
     ; ref
     %else
         removeIndex %1
-        %xdefine %%tok __1
-        %ifnum size(%%tok)
-            retm size(%%tok)
+        %xdefine %?tok __1
+        %ifnum size(%?tok)
+            retm size(%?tok)
         %else
-            isTokenFloat %%tok
+            isTokenFloat %?tok
             %if __1
                 retm 8
             %elifnum %1

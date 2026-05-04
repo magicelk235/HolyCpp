@@ -10,10 +10,10 @@
 
 ; name,(key,item)...
 %macro dictset 1-*
-    %xdefine %%name %1
+    %xdefine %?name %1
     %rotate 1
     %rep (%0-1)/2
-        dictsetkey %%name,%1,%2
+        dictsetkey %?name,%1,%2
         %rotate 2
     %endrep
 %endmacro

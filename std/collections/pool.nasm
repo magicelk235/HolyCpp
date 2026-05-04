@@ -8,10 +8,10 @@
 
 ; name,data
 %macro poolset 1-*
-    %xdefine %%name %1
+    %xdefine %?name %1
     %rep %0-1
         %rotate 1
-        pooladd %%name,%1
+        pooladd %?name,%1
     %endrep
 %endmacro
 

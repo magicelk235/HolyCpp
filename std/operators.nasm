@@ -2,15 +2,12 @@
 ; Returns type in __1: int, unint, float
 ; Refs override const-derived types, but not other ref types
 %macro getInputType 1-*
-    %xdefine %%type int
+    %xdefine %?type int
 
     %rep %0
         isTokenFloat %1
         %if __1
-            ; float const
-            %if %%fromConst
-                %xdefine %%type float
-            %endif
+            %xdefine %?type float
         %elif isRef(%1)
             removeIndex %1
             retm type(__1)
@@ -18,26 +15,26 @@
         %rotate 1
     %endrep
 
-    retm %%type
+    retm %?type
 %endmacro
 
 %macro useOperator2 4
     getInputType %{2:-1}
-    %xdefine %%type __1
-    %if isProc(__%[%%type].%1)
-        callp __%[%%type].%1,%2,%3,%4
+    %xdefine %?type __1
+    %if isProc(__%[%?type].%1)
+        callp __%[%?type].%1,%2,%3,%4
     %else
-        __%[%%type].%1 %2,%3,%4
+        __%[%?type].%1 %2,%3,%4
     %endif
 %endmacro
 
 %macro useOperator1 3
     getInputType %2
-    %xdefine %%type __1
-    %if isProc(__%%type.%1)
-        callp __%%type.%1,%2,%3
+    %xdefine %?type __1
+    %if isProc(__%?type.%1)
+        callp __%?type.%1,%2,%3
     %else
-        __%%type.%1,%2,%3
+        __%?type.%1,%2,%3
     %endif
 %endmacro
 
