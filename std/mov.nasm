@@ -331,51 +331,19 @@
         %exitmacro
     %endif
 
-    %if isRef(%1)&&%isstr(%2)
-        %xdefine %?str %2
+    isMemory %1
+    %if __1&&%isstr(%2)
+        addrOf %1,0,0,0
+        %xdefine %?addr __1
+        parseStr %2
+        %xdefine %?str __1
 
-        %strlen %?len %?str
-        tokenCount %?str,"\"
-        %assign %?realLen %?len-__1
-        tokenCount %?str,"\\"
-        %assign %?realLen %?realLen+__1
-
-        addrOf %1,rbx,"",0
-        %assign __times_%1 %?realLen
-        %assign %?special 0
-        %assign %?i 1
-        %rep %?len
-            %substr %?char %?str %?i
-            %define %?addr __1+%eval(%?i-1)
-            %if %?special
-                %if %?char == "n"
-                    omov byte [%?addr],10
-                %elif %?char == "a"
-                    omov byte [%?addr],7
-                %elif %?char == "b"
-                    omov byte [%?addr],8
-                %elif %?char == "v"
-                    omov byte [%?addr],11
-                %elif %?char == "f"
-                    omov byte [%?addr],12
-                %elif %?char == "r"
-                    omov byte [%?addr],13
-                %elif %?char == "\"
-                    omov byte [%?addr],92
-                %elif %?char == "0"
-                    omov byte [%?addr],0
-                %endif
-                %assign %?special 0
-            %else
-                %if %?char == "\"
-                    %assign %?special 1
-                %else
-                    omov byte [%?addr],%?char
-                %endif
-            %endif
+        %assign %?i 0
+        %rep listlen(%?str)
+            omov byte [%?addr+%?i],listIndex(%?str,%?i)
             %assign %?i %?i+1
         %endrep
-        omov byte [%?addr],0
+        omov byte [%?addr+%?i],0
         %define inMov 0
         %exitmacro
     %endif
