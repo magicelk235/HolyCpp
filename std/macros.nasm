@@ -343,7 +343,61 @@
     retm %?count
 %endmacro
 
-
+;str 
+%macro parseStr 1
+    newList %?str
+    %strlen %?len %1
+    %assign %?special 0
+    %assign %?i 1
+    %rep %?len
+        %substr %?char %1 %?i,2
+        %if %?char == ""
+            %exitrep
+        %elif %?char == "\n"
+            listpush %?str,10
+            %assign %?i %?i+2
+        %elif %?char == "\a"
+            listpush %?str,7
+            %assign %?i %?i+2
+        %elif %?char == "\b"
+            listpush %?str,8
+            %assign %?i %?i+2
+        %elif %?char == "\v"
+            listpush %?str,11
+            %assign %?i %?i+2
+        %elif %?char == "\f"
+            listpush %?str,10
+            %assign %?i %?i+2
+        %elif %?char == "\r"
+            listpush %?str,13
+            %assign %?i %?i+2
+        %elif %?char == "\\"
+            listpush %?str,92
+            %assign %?i %?i+2
+        %else
+            %substr %?start %1 %?i,1
+            %if %?start == "\" && %?char != "\"
+                %substr %?sub3 %1 %?i+1,3
+                %substr %?sub2 %1 %?i+1,2
+                %substr %?sub1 %1 %?i+1,1
+                %ifnum %tok(%?sub3)
+                    listpush %?str,%tok(%?sub3)
+                    %assign %?i %?i+4
+                %elifnum %tok(%?sub2)
+                    listpush %?str,%tok(%?sub2)
+                    %assign %?i %?i+3
+                %elifnum %tok(%?sub1)
+                    listpush %?str,%tok(%?sub1)
+                    %assign %?i %?i+2
+                %endif
+            %else
+                listpush %?str,%?start
+                %assign %?i %?i+1
+            %endif
+        %endif
+    %endrep
+    retm %?str
+%endmacro
 
 %macro joinBracketSplit 1
     newList %?items
