@@ -8,8 +8,5 @@
 %include "std/eval.nasm"
 %include "std/mov.nasm"
 %include "std/proc.nasm"
-%include "std/math.nasm"
 %include "std/ctrl.nasm"
-%include "std/bool.nasm"
-%include "std/bitwise.nasm"
 %include "std/debug.nasm"
