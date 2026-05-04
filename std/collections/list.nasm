@@ -19,6 +19,7 @@
 
 %define listlen(name) __%+name%+@list@%+len
 %define listIndex(name,i) __%+name%+@list@%+i
+%define islist(name) %isnum(listlen(name))
 
 ; name,index,data
 %macro listsetindex 3
@@ -48,8 +49,9 @@
 ; name,index
 %macro listrm 2
     %assign %?i %2
-    listsetindex %1,%?i,listIndex(%1,%eval(listlen(%1)-1))
     %assign __%[%1]@list@len listlen(%1)-1
+    listsetindex %1,%?i,listIndex(%1,listlen(%1))
+    %undef __%1@list@listlen(%1)
 %endmacro
 
 %macro listwarning 1
@@ -71,9 +73,11 @@
 %endmacro
 
 %macro listdelete 1
-    %assign %?i 1
-    %rep listlen(%1)
-        %undef __%[%1]@list@%[%?i]
-    %endrep
-    %undef __%[%1]@list@len
+    %if islist(%1)
+        %assign %?i 1
+        %rep listlen(%1)
+            %undef __%[%1]@list@%[%?i]
+        %endrep
+        %undef __%[%1]@list@len
+    %endif
 %endmacro
