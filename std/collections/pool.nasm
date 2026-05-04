@@ -22,7 +22,7 @@
 ; name,item
 %macro pooladd 2
     %if !poolin(%1,%2)
-        %assign __%[%1]@pool@%[%2] poollen(name)
+        %assign __%[%1]@pool@%[%2] poollen(%1)
         listpush poollist(%1),%2
     %endif
 %endmacro
@@ -47,4 +47,20 @@
             %assign %?i %?i+1
         %endrep
     %endif
+%endmacro
+
+; src,dest
+%macro poolcopy 2
+    %assign %?i 0
+    %rep poollen(%1)
+        pooladd %2,listIndex(poollist(%1),%?i)
+        %assign %?i %?i+1
+    %endrep
+%endmacro
+
+; src -> new copy
+%macro poolnewcopy 1
+    newPool %%copy
+    poolcopy %1,%%copy
+    retm %%copy
 %endmacro

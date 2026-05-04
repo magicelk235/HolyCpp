@@ -16,9 +16,9 @@
     %endrep
 %endmacro
 
-%define dictkeyspool(name) __%+%%name%+@dict@keys
+%define dictkeyspool(name) __%+name%+@dict@keys
 %define dictkeyslist(name) poollist(dictkeyspool(name))
-%define dictlen(name) poollen(dictkeys(name))
+%define dictlen(name) poollen(dictkeyspool(name))
 %define indict(name,key) poolin(dictkeyspool(name),key)
 %define dictkey(name,key) __%+name%+@dict@%+key
 %define keyspool(name) __%+name%+@dict@keys
@@ -49,4 +49,21 @@
         %endrep
         pooldelete dictkeyspool(%1)
     %endif
+%endmacro
+
+; src,dest
+%macro dictcopy 2
+    %assign %?i 0
+    %rep dictlen(%1)
+        %xdefine %?key listIndex(dictkeyslist(%1),%?i)
+        dictsetkey %2,%?key,dictkey(%1,%?key)
+        %assign %?i %?i+1
+    %endrep
+%endmacro
+
+; src -> new copy
+%macro dictnewcopy 1
+    newDict %%copy
+    dictcopy %1,%%copy
+    retm %%copy
 %endmacro

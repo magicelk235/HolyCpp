@@ -81,3 +81,19 @@
         %undef __%[%1]@list@len
     %endif
 %endmacro
+
+; src,dest
+%macro listcopy 2
+    %assign %?i 0
+    %rep listlen(%1)
+        listsetindex %2,%?i,listIndex(%1,%?i)
+        %assign %?i %?i+1
+    %endrep
+%endmacro
+
+; src -> new copu
+%macro listnewcopy 1
+    newList %%copy
+    listcopy %1,%%copy
+    retm %%copy
+%endmacro
