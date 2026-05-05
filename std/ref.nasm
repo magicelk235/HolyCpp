@@ -11,8 +11,8 @@
     %assign __%1@ref@totalSize 8*(%5>0)+%2*(%5<=0) ; 8 byte pointer or real size
 
     newList __%1@ref@shape
-    %rotate 5
-    %rep %0-5
+    %rotate 4
+    %rep %0-4
         %assign __%[refName]@ref@totalSize totalSize(refName)*%1
         listpush __%[refName]@ref@shape, %1
         %rotate 1
