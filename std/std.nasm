@@ -2,6 +2,7 @@
 %include "std/types/types.nasm"
 %include "std/macros.nasm"
 %include "std/regs.nasm"
+%include "std/class.nasm"
 %include "std/ref.nasm"
 %include "std/arrays.nasm"
 %include "std/operators.nasm"
