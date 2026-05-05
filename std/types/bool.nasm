@@ -31,6 +31,8 @@
 %define __bool.equ __int.equ
 %define __bool.nequ __int.nequ
 
+newType bool,1
+
 %macro __bool.bnot 2
     mov rax,%1
     cmp rax,false

@@ -30,6 +30,13 @@
 
 %define __int.set mov
 
+
+newType int8,1,1
+newType int16,2,1
+newType int32,4,1
+newType int64,8,1
+newType int,4,1
+
 ; cmp(var1,var2,?dest)
 %macro __int.cmp 3
     %if size(%3) == 1

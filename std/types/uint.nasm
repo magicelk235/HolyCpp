@@ -41,6 +41,14 @@
 %define __unint.nequ __int.nequ
 %define __unint.pow __int.pow
 
+
+newType uint8,1
+newType uint16,2
+newType uint32,4
+newType uint64,8
+newType uint,4
+
+
 %macro __unint.low 3
     __unint.cmp %1,%2,%3
     setb al

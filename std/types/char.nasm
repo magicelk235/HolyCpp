@@ -47,3 +47,4 @@
 %define __char.and __unint.and
 %define __char.shr __unint.shr
 %define __char.shl __unint.shl
+newType char,1

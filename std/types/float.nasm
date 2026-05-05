@@ -34,6 +34,8 @@
 %define __float.shr __unint.shr
 %define __float.shl __unint.shl
 
+newType float,8
+
 %macro __float.cmp 3
     mov xmm0,%1
     mov xmm1,%2
