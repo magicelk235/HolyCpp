@@ -308,14 +308,14 @@
     %if inMov
         mov %1,%2
     %else
-        mov %1,%2,0,0,0
+        mov %1,%2,0
     %endif
 %endmacro
 
 
-; mov(dest,src,?ds,?ss)
-%macro mov 2-5
-    %if %0==5
+; mov(dest,src)
+%macro mov 2-3
+    %if %0==3
         mov %1,%2
         %exitmacro
     %endif
@@ -363,7 +363,7 @@
     %if __1
         splitArrayToElements %2
         %xdefine %?elements __1
-        addrOf %1,rax,"",0
+        addrOf %1,rax,0,0
         %xdefine %?base __1
         %if listPointer(%1)
             %assign %?size 8
@@ -381,10 +381,17 @@
     %endif
 
     parseSizeKeyword %1
-    %if __1==0
-        doubleMemoryMov %1,%2
+    %if __1!=0
+        %xdefine %%dest __2
+        %xdefine %%ds __1
+        parseSizeKeyword %2
+        %if __1!=0
+            doubleMemoryMov %%dest,__2,%%ds,__1
+        %else
+            doubleMemoryMov %%dest,%2,%%ds
+        %endif
     %else
-        doubleMemoryMov __2,%2,__1
+        doubleMemoryMov %1,%2
     %endif
     
     %define inMov 0
