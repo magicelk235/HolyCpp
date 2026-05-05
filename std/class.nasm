@@ -31,7 +31,7 @@
     %define inClass 1
     newDict __%1@class@functions
     newDict __%1@class@reference
-    %assign __%1@class@size
+    %assign __%1@class@size 0
 %endmacro
 
 %define classSize(x) __%+ x %+@class@size
