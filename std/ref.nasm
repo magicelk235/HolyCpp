@@ -5,11 +5,10 @@
     %xdefine __%1@ref@type %3
     %assign __%1@size classSize(%3)
     %assign __%1@ref@depth %4
-    %assign __%1@ref@signed %isidn(classSigned(%3),1)
+    %assign __ref@ref@%1 1
     %xdefine refName %1
 
-    %assign __%1@ref@totalSize 8*(%5>0)+%2*(%5<=0) ; 8 byte pointer or real size
-
+    %assign __%1@ref@totalSize 8*(%4>0)+size(%1)*(%4<=0) ; 8 byte pointer or real size
     newList __%1@ref@shape
     %rotate 4
     %rep %0-4
@@ -40,9 +39,9 @@
 %define depth(name) __ %+ name %+ @ref@depth
 %define shape(name) __ %+ name %+ @ref@shape
 %define addr(name) __ %+ name %+ @ref@addr
-%define signed(name) __ %+ name %+ @ref@signed
-%define isRef(x) %isnum(__ %+ x %+ @ref)
-%define isDirectRef(x) %isidn(__ %+ x %+ @ref, 1)
+%define signed(name) %isidn(classSigned(%[type(name)]),1)
+%define isRef(x) %isnum(__ref@ref@%+x)
+%define isDirectRef(x) %isidn(__ref@ref@%+x, 1)
 
 ; search for [ at start
 ; isDirectMemory(token)
