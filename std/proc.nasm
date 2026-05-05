@@ -43,88 +43,17 @@
                 mov rax,__1
                 push rax
             %endif
-        %elif isRef(%1)
-            %if isDirectRef(%1)
-                %if listIndex(shape(%1),0)>1
-                    addrOf %1,rax,"",0
-                    %xdefine %?addr __1
-
-                    %assign %?actualSize totalSize(%1)
-                    %assign %?totalByteSize __macro_align8(%?actualSize)
-                    %assign %?remainder %?actualSize % 8
-                    %assign %?rspOffset %?totalByteSize
-                    %assign %?arrayOffset 0
-
-                    %rep %?actualSize/16
-                        movdqu xmm0,[%?src+%?arrayOffset]
-                        movdqu [%?dest+%?rspOffset],xmm0
-                        %assign %?arrayOffset %?arrayOffset+16
-                        %assign %?rspOffset %?rspOffset-16
-                    %endrep
-                    %assign %?actualSize %?actualSize % 16
-
-                    %rep %?actualSize/8
-                        omov rax,[%?src+%?arrayOffset]
-                        omov [%?dest+%?rspOffset],rax
-                        %assign %?arrayOffset %?arrayOffset+8
-                        %assign %?rspOffset %?rspOffset-8
-                    %endrep
-                    %assign %?actualSize %?actualSize % 8
-
-                    %rep %?actualSize/4
-                        omov eax,[%?src+%?arrayOffset]
-                        omov [%?dest+%?rspOffset],eax
-                           %assign %?arrayOffset %?arrayOffset+4
-                        %assign %?rspOffset %?rspOffset-4
-                    %endrep
-
-                    %assign %?actualSize %?actualSize % 4
-                    %rep %?actualSize/2
-                        mov ax,[%?src+%?arrayOffset]
-                        mov [%?dest+%?rspOffset],ax
-                        %assign %?arrayOffset %?arrayOffset+2
-                        %assign %?rspOffset %?rspOffset-2
-                    %endrep
-
-                    %if %?actualSize % 2
-                        mov al,[%?src+%?arrayOffset]
-                        mov [%?dest+%?rspOffset],al
-                    %endif
-                    sub rsp,%?totalByteSize
-
-                %else
-                    sizeByToken %1
-                    %if __1==8
-                        lxd %1,rbp
-                        push qword __1
-                    %else
-                        mov rax,%1
-                        push rax
-                    %endif
-                %endif
-            %else
-                sizeByToken %1
-                %if __1==8
-                    lxd %1,""
-                    push qword __1
-                %else
-                mov rax,%1
-                push rax
-                %endif
-            %endif
-        %elif isReg(%1)
-            %if size(%1)!=8
-                %assign %?size (size(%1)/8) * 8
-                %assign %?size (size(%1) % 8!=0? 8 : %?size)
-                sub rsp,%?size
-                mov [rsp],%1,8,size(%1)
-            %else
-                push %1
-            %endif
         %else
-            push qword %1
+            totalSizeByToken %1
+            %if __1==8
+                lxd %1,0
+                push qword __1
+            %else
+                %assign %?totalByteSize __macro_align8(__1)
+                sub rsp,%?totalByteSize
+                mov qword [rsp],%1
+            %endif
         %endif
-        
     %endrep
 %endmacro
 
