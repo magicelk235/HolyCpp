@@ -41,7 +41,7 @@
 %define classFunctionOffset(class,func) dictkey(classFunctions(class),func)
 %define classReferencefOffset(class,ref) dictkey(classReference(class),ref)
 
-%macro newStatic
+;%macro newStatic
 
 %macro endclass 0 
 
