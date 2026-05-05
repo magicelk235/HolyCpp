@@ -236,7 +236,7 @@
             %assign %?sizeDest %?sizeSrc
         %elif %?sizeSrc == 0
             %assign %?sizeSrc %?sizeDest
-            %endif
+        %endif
         %if (%?sizeDest > %?sizeSrc && isPow2(%?sizeDest))&&(%?sizeDest <= 8 && isPow2(%?sizeSrc)) 
             automov reg(%?sizeDest,0),%2
             automov %1,reg(%?sizeDest,0)
@@ -379,7 +379,14 @@
         %define inMov 0
         %exitmacro
     %endif
-    doubleMemoryMov %{1:-1}
+
+    parseSizeKeyword %1
+    %if __1==0
+        doubleMemoryMov %1,%2
+    %else
+        doubleMemoryMov __2,%2,__1
+    %endif
+    
     %define inMov 0
 %endmacro
 
