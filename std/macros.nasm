@@ -396,6 +396,7 @@
             %endif
         %endif
     %endrep
+    listpush %?str,0
     retm %?str
 %endmacro
 
