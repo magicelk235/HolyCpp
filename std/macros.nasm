@@ -1,3 +1,31 @@
+%macro parseSizeKeyword 1
+    findInToken %1, "qword "
+    %if __1 != -1
+        subToken %1, __1+6, -1
+        retm 8, __1
+        %exitmacro
+    %endif
+    findInToken %1, "dword "
+    %if __1 != -1
+        subToken %1, __1+6, -1
+        retm 4, __1
+        %exitmacro
+    %endif
+    findInToken %1, "word "
+    %if __1 != -1
+        subToken %1, __1+5, -1
+        retm 2, __1
+        %exitmacro
+    %endif
+    findInToken %1, "byte "
+    %if __1 != -1
+        subToken %1, __1+5, -1
+        retm 1, __1
+        %exitmacro
+    %endif
+    retm 0, %1
+%endmacro
+
 ;defines a reg that isnt used as r
 ;eg: resr(s:4,rax,rbx)->ecx
 ;resr(?size-1,used-regs-1-*)
