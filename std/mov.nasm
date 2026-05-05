@@ -394,3 +394,26 @@
         %endif
     %endif
 %endmacro
+
+%macro totalSizeByToken 1
+    ; register
+    %if isReg(%1)
+        retm size(%1)
+    ; ref
+    %else
+        removeIndex %1
+        %xdefine %?tok __1
+        %ifnum totalSize(%?tok)
+            retm totalSize(%?tok)
+        %else
+            isTokenFloat %?tok
+            %if __1
+                retm 8
+            %elifnum %1
+                retm numSize(%1)
+            %else
+                retm 0
+            %endif
+        %endif
+    %endif
+%endmacro
