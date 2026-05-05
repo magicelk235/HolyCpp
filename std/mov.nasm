@@ -219,36 +219,48 @@
     isMemory %2
     %xdefine %?is2Memory __1
     %if %?is1Memory && %?is2Memory
-        
         %if %0 == 3
-            %assign %?size1 %3
+            %assign %?sizeDest %3
         %else
-            sizeByToken %1
-            %assign %?size1 __1
+            totalSizeByToken %1
+            %assign %?sizeDest __1
         %endif
 
         %if %0 == 4
-            %assign %?size2 %4
+            %assign %?sizeSrc %4
         %else
-            sizeByToken %2
-            %assign %?size2 __1
+            totalSizeByToken %2
+            %assign %?sizeSrc __1
         %endif
-        %if isPow2(%?size1)&&isPow2(%?size2)
-            %xdefine %?r reg(__macro_max(%?size1,%?size2),0)
-            automov %?r,%2
-            resetOldAutoMov
-            %if %0==2
-                automov %1,%?r
-            %else
-                automov %1,%?r,%3
+        %if %?sizeDest == 0
+            %assign %?sizeDest %?sizeSrc
+        %elif %?sizeSrc == 0
+            %assign %?sizeSrc %?sizeDest
             %endif
+        %if (%?sizeDest > %?sizeSrc && isPow2(%?sizeDest))&&(%?sizeDest <= 8 && isPow2(%?sizeSrc)) 
+            automov reg(%?sizeDest,0),%2
+            automov %1,reg(%?sizeDest,0)
         %else
-            addrOf %1,"","",0
+            addrOf %1,0,0,0
             %xdefine %?dest __1
             addrOf %2,%?dest,"",0
             %xdefine %?src __1
-            %assign %?copySize __macro_min(%?size1,%?size2)
+            %assign %?copySize %?sizeSrc
             %assign %?offset 0
+
+            %rep %?copySize/64
+                vmovdqu64 zmm0,[%?src+%?offset]
+                vmovdqu64 [%?dest+%?offset],zmm0
+                %assign %?offset %?offset+64
+            %endrep
+            %assign %?copySize %?copySize % 64
+
+            %rep %?copySize/32
+                VMOVDQU ymm0,[%?src+%?offset]
+                VMOVDQU [%?dest+%?offset],ymm0
+                %assign %?offset %?offset+32
+            %endrep
+            %assign %?copySize %?copySize % 32
 
             %rep %?copySize/16
                 movdqu xmm0,[%?src+%?offset]
@@ -343,7 +355,6 @@
             omov byte [%?addr+%?i],listIndex(%?str,%?i)
             %assign %?i %?i+1
         %endrep
-        omov byte [%?addr+%?i],0
         %define inMov 0
         %exitmacro
     %endif
