@@ -39,44 +39,29 @@
 %endmacro
 
 %macro __bool.bor 3
-    %if size(%3) == 1
-        mov al,%1
-        lxd %2,al
-        or al,__1
-    %elif size(%3) == 2
-        mov ax,%1
-        lxd %2,ax
-        or ax,__1
-    %elif size(%3) == 4
-        mov eax,%1
-        lxd %2,eax
-        or eax,__1
-    %else
-        mov rax,%1
-        lxd %2,rax
-        or rax,__1
-    %endif
-    setne al
+    mov al,%1
+    lxd %2,al
+    or al,__1
     mov %3,al
 %endmacro
 
 %macro __bool.bxor 3
-    mov rbx,%1
-    cmp rbx,0
+    mov bl,%1
+    cmp bl,0
     setne al
-    mov rbx,%1
-    cmp rbx,0
+    mov bl,%2
+    cmp bl,0
     setne bl
     xor al,bl
     mov %3,al
 %endmacro
 
 %macro __bool.band 3
-    mov rax,%1
-    cmp rax,0
+    mov al,%1
+    cmp al,0
     je %%false
-    mov rax,%2
-    cmp rax,0
+    mov al,%2
+    cmp al,0
     je %%false
     mov %3,1
     jmp %%end
