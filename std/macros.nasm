@@ -428,25 +428,26 @@
     retm %?str
 %endmacro
 
-%macro joinBracketSplit 1
+%macro joinBracketSplit 1-*
     newList %?items
     %assign %?stackcount 0
     %assign %?current 0
     %rep %0
         %if %?stackcount==0
+            listpush %?items,%1
             %assign %?current %?current+1
-            listset %?items,%?current,%1
         %else
-            listset %?items,%?current,listIndex(%?items,%?current)%+:%+%1
+            %xdefine %?last %[listIndex(%?items,%eval(%?current-1))]
+            listsetindex %?items,%eval(%?current-1),%[%?last%+:%+%1]
         %endif
-        findInToken %1,"("
+        tokenCount %1,"("
         %assign %?stackcount %?stackcount+__1
-        findInToken %1,"["
+        tokenCount %1,"["
         %assign %?stackcount %?stackcount+__1
 
-        findInToken %1,"]"
-        %assign %?stackcount %?stackcount-__1   
-        findInToken %1,")"
+        tokenCount %1,"]"
+        %assign %?stackcount %?stackcount-__1
+        tokenCount %1,")"
         %assign %?stackcount %?stackcount-__1
         %rotate 1
     %endrep
