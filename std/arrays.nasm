@@ -11,11 +11,14 @@
 %macro splitIndex 1
     findInToken %1,[
     %assign %?start __1
+    %if %?start == -1
+        retm 0,0
+        %exitmacro
+    %endif
 
     subToken %1,0,%?start
     %xdefine %?ref __1
 
-    ; extract inner: "5][3][2" from "[5][3][2]"
     subToken %1,%?start+1,-2
 
     splitToken __1,][
@@ -81,8 +84,7 @@
         %endif
         %assign %?i %?i+1
     %endrep
-
-    %if depth(%?ref)-%3>0
+    %if (depth(%?ref)-%4) > 0
         %if %?usedR
             omov r,[%?base]
         %else
