@@ -1,5 +1,8 @@
 ; name,(key,item)...
 %macro newDict 1-*
+    %if isdict(%1)
+        dictdelete %1
+    %endif
     newPool __%[%1]@dict@keys
     %if %0>1
         dictset %1,%{2:-1}
@@ -36,8 +39,8 @@
 %macro dictrmkey 2
     %if indict(%1,%2)
         %undef __%[%1]@dict@%[%2]
-        poolrm %2
-    %endif       
+        poolrm dictkeyspool(%1),%2
+    %endif
 %endmacro
 
 ; name
@@ -66,4 +69,14 @@
     newDict %%copy
     dictcopy %1,%%copy
     retm %%copy
+%endmacro
+
+; name - prints dict contents at compile time
+%macro dictwarning 1
+    %assign %?i 0
+    %rep dictlen(%1)
+        %xdefine %?key listIndex(dictkeyslist(%1),%?i)
+        %warning "  " %?key ":" dictkey(%1,%?key)
+        %assign %?i %?i+1
+    %endrep
 %endmacro

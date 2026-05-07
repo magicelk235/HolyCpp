@@ -1,6 +1,9 @@
 ; name,data
 %macro newList 1-*
-    %assign __%[%1]@list@len %0-1
+    %if islist(%1)
+        listdelete %1
+    %endif
+    %assign __%1@list@len %0-1
     %if %0>1
         listset %{1:-1}
     %endif
@@ -23,9 +26,9 @@
 
 ; name,index,data
 %macro listsetindex 3
-    %define __%[%1]@list@%[%2] %3
+    %xdefine __%1@list@%2 %3
     %if %2>=listlen(%1)
-        %assign __%[%1]@list@len %2+1
+        %assign __%1@list@len %2+1
     %endif
 %endmacro
 
@@ -49,9 +52,10 @@
 ; name,index
 %macro listrm 2
     %assign %?i %2
-    %assign __%[%1]@list@len listlen(%1)-1
-    listsetindex %1,%?i,listIndex(%1,listlen(%1))
-    %undef __%1@list@listlen(%1)
+    %assign %?lastidx listlen(%1)-1
+    %assign __%[%1]@list@len %?lastidx
+    listsetindex %1,%?i,listIndex(%1,%?lastidx)
+    %undef __%[%1]@list@%[%?lastidx]
 %endmacro
 
 %macro listwarning 1
@@ -65,11 +69,11 @@
 %macro listToTuple 1
     %assign %?i 1
     %xdefine %?tuple listIndex(%1,0)
-    %rep listlen(%1)-1
-        %xdefine %?tuple%+,%+listIndex(%1,%?i)
+    %rep %eval(listlen(%1)-1)
+        %xdefine %?tuple %?tuple%+,%+listIndex(%1,%?i)
         %assign %?i %?i+1
     %endrep
-    retm {%?tuple}
+    %xdefine __1 %?tuple
 %endmacro
 
 %macro listdelete 1

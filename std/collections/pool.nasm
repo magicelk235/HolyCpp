@@ -1,5 +1,9 @@
 ; name,data
 %macro newPool 1-*
+    %if ispool(%1)
+        pooldelete %1
+    %endif
+
     newList __%1@pool@list
     %if %0>1
         poolset %1,%{2:-1}
@@ -31,10 +35,12 @@
 %macro poolrm 2
     %if poolin(%1,%2)
         %assign %?index __%[%1]@pool@%[%2]
-        %undef __%[%1]@pool@%[%2] 
-        %xdefine %?last listIndex(poollist(%1),poollen(%1)-1)
+        %undef __%[%1]@pool@%[%2]
+        %xdefine %?last listIndex(poollist(%1),%eval(poollen(%1)-1))
         listrm poollist(%1),%?index
-        %assign __%1@pool@%?last poollen(%1)-1
+        %if %?index < poollen(%1)
+            %assign __%[%1]@pool@%[%?last] %?index
+        %endif
     %endif
 %endmacro
 
