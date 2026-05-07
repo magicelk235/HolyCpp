@@ -175,72 +175,99 @@
     allocsection %1,%2,.rdata
 %endmacro
 
+; allocglobal(name, type, depth, shape, data)
+%macro allocglobal 5
+    listToTuple %4
+    newRef %1,0,%2,%3,__1
+
+    isNumber %5
+    %assign %%validdata __1
+    isTokenArray %5
+    %assign %%validdata %%validdata || __1
+
+    %if %%validdata || %isstr(%5)
+        allocdata totalSize(%1),%5
+        %xdefine __%[%1]@ref@addr __1
+    %else
+        allocbss totalSize(%1)
+        %xdefine __%[%1]@ref@addr __1
+    %endif
+%endmacro
+
+; allocconst(name, type, depth, shape, data)
+%macro allocconst 5
+    listToTuple %4
+    newRef %1,0,%2,%3,__1
+
+    allocrdata totalSize(%1),%5
+    %xdefine __%[%1]@ref@addr __1
+%endmacro
+
 ; getScope(expression)
-; returns scope, cleaned expression
+; returns scope (token), cleaned expression
 %macro getScope 1
     %xdefine %?expr %1
     findInToken %?expr,"global "
     %if __1 != -1
         replaceToken %?expr,"global ",""
-        retm "g",__1
+        retm global,__1
         %exitmacro
     %endif
     findInToken %?expr,"local "
     %if __1 != -1
         replaceToken %?expr,"local ",""
-        retm "l",__1
+        retm local,__1
         %exitmacro
     %endif
     findInToken %?expr,"tbp "
     %if __1 != -1
         replaceToken %?expr,"tbp ",""
-        retm "tbp",__1
+        retm tbp,__1
         %exitmacro
     %endif
     findInToken %?expr,"tsp "
     %if __1 != -1
         replaceToken %?expr,"tsp ",""
-        retm "tsp",__1
+        retm tsp,__1
         %exitmacro
     %endif
     findInToken %?expr,"const "
     %if __1 != -1
         replaceToken %?expr,"const ",""
-        retm "c",__1
+        retm const,__1
         %exitmacro
     %endif
     findInToken %?expr,"arg "
     %if __1 != -1
         replaceToken %?expr,"arg ",""
-        retm "a",__1
+        retm arg,__1
         %exitmacro
     %endif
     findInToken %?expr,"static "
     %if __1 != -1
         replaceToken %?expr,"static ",""
-        retm "g",__1
+        retm static,__1
         %exitmacro
     %endif
     %if inProc
-        retm "l",%?expr
+        retm local,%?expr
     %elif inClass
-        retm "cls",%?expr
+        retm class,%?expr
     %else
-        retm "g",%?expr
+        retm global,%?expr
     %endif
 %endmacro
 
 ; new(type,name)
 %macro new 1-*
     joinBracketSplit %{1:-1}
-    
 
     %xdefine %?type listIndex(__1,0)
     %xdefine %?expression listIndex(__1,1)
 
     %xdefine %?data emptyToken
     findInToken %?expression,= ; split start data
-    %if __1
+    %if __1!=-1
         %assign %?startDataIndex __1+1
         subToken %?expression,%?startDataIndex
         %xdefine %?data __1
@@ -255,12 +282,9 @@
     ; search for [] if is an array
     splitIndex %?expression
 
-    ;%warning __1,__2,%?expression
-
     %if isEmpty(listIndex(__2,0))
         %xdefine %?expression __1
     %endif
-
 
     %if %isnidn(__1,0) && !isEmpty(listIndex(__2,0))
         %xdefine %?expression __1
@@ -285,52 +309,8 @@
     replaceToken %?expression,@,""
     %xdefine %?expression __1
 
-    listToTuple %?shape
-    newRef %?expression,0,%?type,%?depth,__1
-
-    %if %?scope=="c"
-        allocrdata totalSize(%?expression),%?data
-        %xdefine __%[%?expression]@ref@addr __1
-    %elif %?scope=="cls"
-        allocclass totalSize(%?expression),%?expression
-    %elif %?scope=="g"
-        isNumber %?data
-        %assign %%validdata __1
-        isTokenArray %?data
-        %assign %%validdata __1
-
-        %if %%validdata || %isstr(%?data)
-            allocdata totalSize(%?expression),%?data
-            %xdefine __%[%?expression]@ref@addr __1
-        %else
-            allocbss totalSize(%?expression)
-            %xdefine __%[%?expression]@ref@addr __1
-            %if !isEmpty(%?data)
-                %?expression = %?data
-            %endif
-        %endif
-    %elif %?scope=="l"
-        alloclocal totalSize(%?expression)
-        %xdefine __%[%?expression]@ref@addr __1
-        %if !isEmpty(%?startData)
-            set %?setName=%?startData
-        %endif
-    %elif %?scope=="a"
-        allocarg totalSize(%?expression)
-        %xdefine __%[%?expression]@ref@addr __1
-        %if !isEmpty(%?startData)
-            cmp qword [addr(argc)],%eval(args(procName)-8)
-            jge .enough %+ %[args(procName)]
-            set %?setName = %?startData
-            .enough %+ %[args(procName)]:
-        %endif
-    %elif %?scope=="tbp"
-        alloctbp totalSize(%?expression)
-        %xdefine __%[%?expression]@ref@addr __1
-    %elif %?scope=="tsp"
-        alloctsp totalSize(%?expression)
-        %xdefine __%[%?expression]@ref@addr __1
-    %endif
+    ; dynamic dispatch to alloc{scope}
+    alloc%[%?scope] %?expression,%?type,%?depth,%?shape,%?data
 %endmacro
 
 ; set

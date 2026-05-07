@@ -1,15 +1,21 @@
-; alloclocal(totalSize)
-%macro alloclocal 1
-    sub rsp,%1
-    %assign __locals_%[procName] locals(procName)+%1
+; alloclocal(name, type, depth, shape, data)
+%macro alloclocal 5
+    listToTuple %4
+    newRef %1,0,%2,%3,__1
+
+    sub rsp,totalSize(%1)
+    %assign __locals_%[procName] locals(procName)+totalSize(%1)
     %assign %?offset heldSize(procName)+locals(procName)
-    retm rbp-%?offset
+    %xdefine __%[%1]@ref@addr rbp-%?offset
 %endmacro
 
-; allocarg(totalSize)
-%macro allocarg 1
-    %assign __args_%[procName] %eval(args(procName)+__macro_align8(%1))
-    retm rbp+%eval(args(procName)+8)
+; allocarg(name, type, depth, shape, data)
+%macro allocarg 5
+    listToTuple %4
+    newRef %1,0,%2,%3,__1
+
+    %assign __args_%[procName] %eval(args(procName)+__macro_align8(totalSize(%1)))
+    %xdefine __%[%1]@ref@addr rbp+%eval(args(procName)+8)
 %endmacro
 
 ; gloabl push
@@ -116,8 +122,8 @@
         newProc procName,0
     %endif
     %define inProc 1
-    new arg qword argc
-    newRef argv,8,addr(argc)+8,0,0,1,1
+    new int64, arg argc
+    newRef argv,addr(argc)+8,type@int64,1,1
 %endmacro
 
 %define __macro_align8(x) %eval(((x)/8 + (((x) % 8)!=0))*8)

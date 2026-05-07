@@ -18,10 +18,13 @@
     %endif
 %endmacro
 
-; alloctbp(totalSize)
-%macro alloctbp 1
-    %assign tempRbpOffset tempRbpOffset+%1
-    retm rbp-tempRbpOffset
+; alloctbp(name, type, depth, shape, data)
+%macro alloctbp 5
+    listToTuple %4
+    newRef %1,0,%2,%3,__1
+
+    %assign tempRbpOffset tempRbpOffset+totalSize(%1)
+    %xdefine __%[%1]@ref@addr rbp-tempRbpOffset
 %endmacro
 
 ;rsp:
@@ -30,10 +33,13 @@
     %assign tempSpOffset 0
 %endmacro
 
-; alloctsp(totalSize)
-%macro alloctsp 1
-    %assign tempSpOffset tempSpOffset+%1
-    retm rsp-tempSpOffset
+; alloctsp(name, type, depth, shape, data)
+%macro alloctsp 5
+    listToTuple %4
+    newRef %1,0,%2,%3,__1
+
+    %assign tempSpOffset tempSpOffset+totalSize(%1)
+    %xdefine __%[%1]@ref@addr rsp-tempSpOffset
 %endmacro
 
 ; mixed:

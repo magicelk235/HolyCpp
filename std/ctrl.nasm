@@ -177,15 +177,27 @@
     proc %?name,%?outs
     %if %0==1
         %if !isEmpty(%?lastArg)
-            new arg %?lastArg
+            splitToken %?lastArg," "
+            %xdefine %?argType listIndex(__1,0)
+            %xdefine %?argName listIndex(__1,1)
+            new %?argType, arg %?argName
         %endif
     %else
-        new arg %?arg1
+        splitToken %?arg1," "
+        %xdefine %?argType listIndex(__1,0)
+        %xdefine %?argName listIndex(__1,1)
+        new %?argType, arg %?argName
         %rep %0-2
             %rotate 1
-            new arg %1
+            splitToken %1," "
+            %xdefine %?argType listIndex(__1,0)
+            %xdefine %?argName listIndex(__1,1)
+            new %?argType, arg %?argName
         %endrep
-        new arg %?lastArg
+        splitToken %?lastArg," "
+        %xdefine %?argType listIndex(__1,0)
+        %xdefine %?argName listIndex(__1,1)
+        new %?argType, arg %?argName
     %endif
 
     %assign __procClean_%[%?name] __macro_max(args(%?name) - outs(%?name),0)
