@@ -1,32 +1,14 @@
-; reserve place in the stack
-; ress(size) 
-%macro ress 1
+; alloclocal(totalSize)
+%macro alloclocal 1
     sub rsp,%1
     %assign __locals_%[procName] locals(procName)+%1
     %assign %?offset heldSize(procName)+locals(procName)
     retm rbp-%?offset
 %endmacro
 
-; new local var in a proc
-; newl(name,size,times,depth)
-%macro newl 4
-    %assign %?size %2
-    %if %4>0
-        %assign %?size 8
-    %endif
-    ress %?size*%3
-%endmacro
-
-; custom arg in a proc
-; arg(name, size,times,depth)
-%macro arg 4
-    %assign %?size %2
-    %if %4>0
-        %assign %?size 8
-        retm rbp+%eval(args(procName)+8)
-    %endif
-
-    %assign __args_%[procName] %eval(args(procName)+__macro_align8(%3*%?size))
+; allocarg(totalSize)
+%macro allocarg 1
+    %assign __args_%[procName] %eval(args(procName)+__macro_align8(%1))
     retm rbp+%eval(args(procName)+8)
 %endmacro
 
@@ -320,18 +302,17 @@
 
     %if !isEmpty(%?args)
         eval %?args,tbp,1
-        %push
-        splitArrayToTokens [__1]
-        %if %$__0 != 0
+        splitArrayToElements [__1]
+        %xdefine %?elements __1
+        %if listlen(%?elements) != 0
             %assign %?useArgs 1
-            %xdefine %?arglist %$__1
-            %assign %?i 2
-            %rep %$__0-1
-            %xdefine %?arglist %?arglist%+,%+ %[%$__ %+ %?i]
+            %xdefine %?arglist listIndex(%?elements,0)
+            %assign %?i 1
+            %rep listlen(%?elements)-1
+                %xdefine %?arglist %?arglist%+,%+listIndex(%?elements,%?i)
                 %assign %?i %?i+1
             %endrep
         %endif
-        %pop
     %endif
     
     %assign %?useOuts 0

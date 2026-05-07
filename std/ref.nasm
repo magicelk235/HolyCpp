@@ -3,7 +3,7 @@
 %macro newRef 5-*
     %xdefine __%1@ref@addr %2
     %xdefine __%1@ref@type %3
-    %assign __%1@size classSize(%3)
+    %xdefine __%1@size classSize(%3)
     %assign __%1@ref@depth %4
     %assign __ref@ref@%1 1
     %xdefine refName %1
@@ -31,7 +31,6 @@
             %endmacro
         %endif
     %endrep
-
 %endmacro
 
 %define totalSize(name) __ %+ name %+ @ref@totalSize
@@ -132,325 +131,206 @@
     %assign inlea 0
 %endmacro
 
-; makes a new global .bss variable
-; newgb(name,size,times,depth)
-%macro newgb 4
+; allocbss(totalSize)
+%macro allocbss 1
     section .bss
-    %assign %?size %2
-    %if %4>0
-        %assign %?size 8
-    %endif
-    %if %3==1
-        __global_label_%1 resb %2
+    %%l resb %1
+    section .text
+    retm %%l
+%endmacro
+
+; allocsection(totalSize,data,section)
+%macro allocsection 3
+    section %3
+    %ifstr %2
+        parseStr %2
+        %xdefine %?str __1
+        %%l:
+        %assign %?i 0
+        %rep listlen(%?str)
+            db listIndex(%?str,%?i)
+            %assign %?i %?i+1
+        %endrep
     %else
-        __global_label_%1 resb %3*%?size
+        %%l:
+        splitArrayToElements %2
+        %xdefine %?elements __1
+        %assign %?i 0
+        %rep listlen(%?elements)
+            dq listIndex(%?elements,%?i)
+            %assign %?i %?i+1
+        %endrep
     %endif
     section .text
-    retm __global_label_%1
+    retm %[%%l]
 %endmacro
 
-; makes a new global .data variable
-; newgd(name,size,times,depth,data,section)
-%macro newgd 6
-    section %6
-    %xdefine %?size %2
-    %if %4>0
-        %define %?size 8
+; allocdata(totalSize,data)
+%macro allocdata 2
+    allocsection %1,%2,.data
+%endmacro
+
+; allocrdata(totalSize,data)
+%macro allocrdata 2
+    allocsection %1,%2,.rdata
+%endmacro
+
+; getScope(expression)
+; returns scope, cleaned expression
+%macro getScope 1
+    %xdefine %?expr %1
+    findInToken %?expr,"global "
+    %if __1 != -1
+        replaceToken %?expr,"global ",""
+        retm "g",__1
+        %exitmacro
     %endif
-    %if %3==1
-        %if %?size==1
-            __global_label_%1 db %5
-        %elif %?size==2
-            __global_label_%1 dw %5
-        %elif %?size==4
-            __global_label_%1 dd %5
-        %else
-            __global_label_%1 dq %5
-        %endif
+    findInToken %?expr,"local "
+    %if __1 != -1
+        replaceToken %?expr,"local ",""
+        retm "l",__1
+        %exitmacro
+    %endif
+    findInToken %?expr,"tbp "
+    %if __1 != -1
+        replaceToken %?expr,"tbp ",""
+        retm "tbp",__1
+        %exitmacro
+    %endif
+    findInToken %?expr,"tsp "
+    %if __1 != -1
+        replaceToken %?expr,"tsp ",""
+        retm "tsp",__1
+        %exitmacro
+    %endif
+    findInToken %?expr,"const "
+    %if __1 != -1
+        replaceToken %?expr,"const ",""
+        retm "c",__1
+        %exitmacro
+    %endif
+    findInToken %?expr,"arg "
+    %if __1 != -1
+        replaceToken %?expr,"arg ",""
+        retm "a",__1
+        %exitmacro
+    %endif
+    findInToken %?expr,"static "
+    %if __1 != -1
+        replaceToken %?expr,"static ",""
+        retm "g",__1
+        %exitmacro
+    %endif
+    %if inProc
+        retm "l",%?expr
+    %elif inClass
+        retm "cls",%?expr
     %else
-        %ifstr %5
-            tokenCount %5,"\"
-            %if __1!=0
-                %strlen %?len %5
-                %assign %?special 0
-                %assign %?i 1
-                __global_label_%1:
-                %rep %?len
-                    %substr %?char %5 %?i
-                    %if %?special
-                        %if %?char == "n"
-                            db 10
-                        %elif %?char == "a"
-                            db 7
-                        %elif %?char == "b"
-                            db 8
-                        %elif %?char == "v"
-                            db 11
-                        %elif %?char == "f"
-                            db 12
-                        %elif %?char == "r"
-                            db 13
-                        %elif %?char == "\"
-                            db 92
-                        %elif %?char == "0"
-                            db 0
-                        %endif
-                        %assign %?special 0
-                    %else
-                        %if %?char == "\"
-                            %assign %?special 1
-                        %else
-                            db %?char
-                        %endif
-                    %endif
-                    %assign %?i %?i+1
-                %endrep
-
-            %else
-                __global_label_%1 db %5
-            %endif
-            db 0
-        %else
-            __global_label_%1:
-            %push
-            splitArrayToTokens %5
-            %assign %?i 1
-            %rep %$__0
-                %if %?size==1
-                    db %[%$__%+%?i]
-                %elif %?size==2
-                    dw %[%$__%+%?i]
-                %elif %?size==4
-                    dd %[%$__%+%?i]
-                %else
-                    dq %[%$__%+%?i]
-                %endif
-                %assign %?i %?i+1
-            %endrep
-            %pop
-        %endif
+        retm "g",%?expr
     %endif
-    section .text
-    retm __global_label_%1
 %endmacro
 
-%macro int 1-*
-%endmacro
-
-; new(name)
+; new(type,name)
 %macro new 1-*
-    joinBracketSplit %1
-    %define %?expression listIndex(__1,0)
+    joinBracketSplit %{1:-1}
+    
 
-    %xdefine %?name %?n_%[%?current]
-    findInToken %?name,= ; split start data
-    %assign %?startData %eval(__1!=-1)
-    %if %?startData
+    %xdefine %?type listIndex(__1,0)
+    %xdefine %?expression listIndex(__1,1)
+
+    %xdefine %?data emptyToken
+    findInToken %?expression,= ; split start data
+    %if __1
         %assign %?startDataIndex __1+1
-        subToken %?name,%?startDataIndex
+        subToken %?expression,%?startDataIndex
         %xdefine %?data __1
-        subToken %?name,0,%eval(%?startDataIndex-1)
-        %xdefine %?name __1
+        subToken %?expression,0,%eval(%?startDataIndex-1)
+        %xdefine %?expression __1
     %endif
 
-    ; size searches for scope
-    findInToken %?name,"global "
-    %if __1 != -1
-        replaceToken %?name,"global ",""
-        %xdefine %?name __1
-        %define %?scope "g"
-    %else
-    findInToken %?name,"local "
-    %if __1 != -1
-        replaceToken %?name,"local ",""
-        %xdefine %?name __1
-        %define %?scope "l"
-    %else
-    findInToken %?name,"tbp "
-    %if __1 != -1
-        replaceToken %?name,"tbp ",""
-        %xdefine %?name __1
-        %define %?scope "tbp"
-    %else
-    findInToken %?name,"tsp "
-    %if __1 != -1
-        replaceToken %?name,"tsp ",""
-        %xdefine %?name __1
-        %define %?scope "tsp"
-    %else
-    findInToken %?name,"const "
-    %if __1 != -1
-        replaceToken %?name,"const ",""
-        %xdefine %?name __1
-        %define %?scope "c"
-    %else
-    findInToken %?name,"arg "
-    %if __1 != -1
-        replaceToken %?name,"arg ",""
-        %xdefine %?name __1
-        %define %?scope "a"
-    %elif inProc
-        %define %?scope "l"
-    %else
-        %define %?scope "g"
-    %endif
-    %endif
-    %endif
-    %endif
-    %endif
+    getScope %?expression
+    %xdefine %?scope __1
+    %xdefine %?expression __2
+
+    ; search for [] if is an array
+    splitIndex %?expression
+
+    ;%warning __1,__2,%?expression
+
+    %if isEmpty(listIndex(__2,0))
+        %xdefine %?expression __1
     %endif
 
-    %assign %?signed 1
-    ; size searches for size
-    %assign %?size 1
-    %assign %?float 0
-    findInToken %?name,"float "
-    %if __1 != -1
-        replaceToken %?name,"float ",""
-        %xdefine %?name __1
-        %assign %?size 8
-        %assign %?float 1
-    %else
-    findInToken %?name,"int "
-    %if __1 != -1
-        replaceToken %?name,"int ",""
-        %xdefine %?name __1
-        %assign %?size 4
-        %assign %?signed 1
-    %else
-    findInToken %?name,"long "
-    %if __1 != -1
-        replaceToken %?name,"long ",""
-        %xdefine %?name __1
-        %assign %?size 8
-        %assign %?signed 1
-    %else
-    findInToken %?name,"char "
-    %if __1 != -1
-        replaceToken %?name,"char ",""
-        %xdefine %?name __1
-        %assign %?size 1
-        %assign %?signed 0
-    %else
-    findInToken %?name,"bool "
-    %if __1 != -1
-        replaceToken %?name,"bool ",""
-        %xdefine %?name __1
-        %assign %?size 1
-        %assign %?signed 0
-    %else
-    findInToken %?name,"short "
-    %if __1 != -1
-        replaceToken %?name,"short ",""
-        %xdefine %?name __1
-        %assign %?size 2
-    %else
-    findInToken %?name,"byte "
-    %if __1 != -1
-        replaceToken %?name,"byte ",""
-        %xdefine %?name __1
-        %assign %?size 1
-    %else
-    findInToken %?name,"qword "
-    %if __1 != -1
-        replaceToken %?name,"qword ",""
-        %xdefine %?name __1
-        %assign %?size 8
-    %else
-    findInToken %?name,"dword "
-    %if __1 != -1
-        replaceToken %?name,"dword ",""
-        %xdefine %?name __1
-        %assign %?size 4
-    %else
-        findInToken %?name,"word "
-        %if __1 != -1
-            replaceToken %?name,"word ",""
-            %xdefine %?name __1
-            %assign %?size 2
-        %endif
-        %endif
-        %endif
-        %endif
-        %endif
-        %endif
-        %endif
-        %endif
-        %endif
-        %endif
 
-        findInToken %?name,~
-        %if __1!=-1
-            replaceToken %?name,~,""
-            %xdefine %?name __1
-            %assign %?signed 0
-        %endif
-
-        ; search for [] if is an array
-        findPare %?name,[,]
-        %if __1 != -1
-            %assign %?startIndex __1
-            %assign %?stopIndex __2
-            subToken %?name,%eval(%?startIndex+1),%?stopIndex
-
-            %if isEmpty(__1)
-                %ifstr %?data
-                    %strlen %?times %?data
-                %else
-                    tokenCount %?data,:
-                    %assign %?times __1+1
-                %endif
-            %else
-                %assign %?times __1
-            %endif
-            subToken %?name,%?startIndex,-1
-            replaceToken %?name,__1,""
-            %xdefine %?name __1
+    %if %isnidn(__1,0) && !isEmpty(listIndex(__2,0))
+        %xdefine %?expression __1
+        %xdefine %?shape __2
+    %else
+        newList %?shape
+        isTokenArray %?data
+        %if __1
+            getArrayShape %?data
+            %xdefine %?shape __1
+        %elifstr %?data
+            listsetindex %?shape,0,%eval(%strlen(%?data)+1)
         %else
-            %assign %?times 1
+            listpush %?shape,1
         %endif
+    %endif
 
-        %xdefine %?setName %?name
+    ; pointer depth searches for @
+    tokenCount %?expression,@
+    %assign %?depth __1
 
-        ; pointer depth searches for @
-        tokenCount %?name,@
-        %assign %?depth __1
+    replaceToken %?expression,@,""
+    %xdefine %?expression __1
 
-        replaceToken %?name,@,""
-        %xdefine %?name __1
+    listToTuple %?shape
+    newRef %?expression,0,%?type,%?depth,__1
 
+    %if %?scope=="c"
+        allocrdata totalSize(%?expression),%?data
+        %xdefine __%[%?expression]@ref@addr __1
+    %elif %?scope=="cls"
+        allocclass totalSize(%?expression),%?expression
+    %elif %?scope=="g"
+        isNumber %?data
+        %assign %%validdata __1
+        isTokenArray %?data
+        %assign %%validdata __1
 
-        %if %?scope=="c"
-            newgd %?name,%?size,%?times,%?depth,%?data,.rdata
-        %elif %?scope=="g"
-            %if %?startData
-                newgd %?name,%?size,%?times,%?depth,%?data,.data
-            %else
-                newgb %?name,%?size,%?times,%?depth
-            %endif
-        %elif %?scope=="l"
-            newl %?name,%?size,%?times,%?depth
-        %elif %?scope=="a"
-            arg %?name,%?size,%?times,%?depth
-        %elif %?scope=="tbp"
-            newtbp %?name,%?size,%?times,%?depth
-        %elif %?scope=="tsp"
-            newtsp %?name,%?size,%?times,%?depth
-        %endif
-
-        newRef %?name,%?size,__1,%?depth,%?float,%?times,%?signed
-        %if %?startData
-            %if %?scope == "l"
-                set %?setName=%?data
-            %elif %?scope == "a"
-                cmp qword [addr(argc)],%eval(args(procName)-8)
-                jge .enough %+ %[args(procName)]
-                set %?setName = %?data
-                .enough %+ %[args(procName)]:
+        %if %%validdata || %isstr(%?data)
+            allocdata totalSize(%?expression),%?data
+            %xdefine __%[%?expression]@ref@addr __1
+        %else
+            allocbss totalSize(%?expression)
+            %xdefine __%[%?expression]@ref@addr __1
+            %if !isEmpty(%?data)
+                %?expression = %?data
             %endif
         %endif
-    %assign %?current %?current+1
-    %endrep
+    %elif %?scope=="l"
+        alloclocal totalSize(%?expression)
+        %xdefine __%[%?expression]@ref@addr __1
+        %if !isEmpty(%?startData)
+            set %?setName=%?startData
+        %endif
+    %elif %?scope=="a"
+        allocarg totalSize(%?expression)
+        %xdefine __%[%?expression]@ref@addr __1
+        %if !isEmpty(%?startData)
+            cmp qword [addr(argc)],%eval(args(procName)-8)
+            jge .enough %+ %[args(procName)]
+            set %?setName = %?startData
+            .enough %+ %[args(procName)]:
+        %endif
+    %elif %?scope=="tbp"
+        alloctbp totalSize(%?expression)
+        %xdefine __%[%?expression]@ref@addr __1
+    %elif %?scope=="tsp"
+        alloctsp totalSize(%?expression)
+        %xdefine __%[%?expression]@ref@addr __1
+    %endif
 %endmacro
 
 ; set
@@ -477,14 +357,14 @@
         isOperator %str(%?sub)
         %if __1
             subToken %?data,0,%eval(%?startDataIndex-1)
-            %xdefine %?name __1
-            %xdefine %?expression (%?expression)%+%?sub%+%?name
+            %xdefine %?expression __1
+            %xdefine %?expression (%?expression)%+%?sub%+%?expression
         %else
             subToken %?data,0,%?startDataIndex
-            %xdefine %?name __1
+            %xdefine %?expression __1
         %endif
         eval %?expression
-        mov %?name,__1
+        mov %?expression,__1
         endEval
     %else
             findInToken %?data,"++"

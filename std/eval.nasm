@@ -18,9 +18,9 @@
     %endif
 %endmacro
 
-; newtbp(name,size,times,depth)
-%macro newtbp 4
-    %assign tempRbpOffset tempRbpOffset+%2*%3
+; alloctbp(totalSize)
+%macro alloctbp 1
+    %assign tempRbpOffset tempRbpOffset+%1
     retm rbp-tempRbpOffset
 %endmacro
 
@@ -30,9 +30,9 @@
     %assign tempSpOffset 0
 %endmacro
 
-; newtsp(name,size,times,depth)
-%macro newtsp 4
-    %assign tempSpOffset tempSpOffset+%2
+; alloctsp(totalSize)
+%macro alloctsp 1
+    %assign tempSpOffset tempSpOffset+%1
     retm rsp-tempSpOffset
 %endmacro
 
@@ -655,18 +655,17 @@
             %assign %?i %?i+1
         %endrep
         
-        %push 
-        splitArrayToTokens %?input
-        %assign %?args %$__0
+        splitArrayToElements %?input
+        %xdefine %?elements __1
+        %assign %?args listlen(%?elements)
         %if %?args != 0
-            %xdefine %?argArr %$__1
-            %assign %?i 2
+            %xdefine %?argArr listIndex(%?elements,0)
+            %assign %?i 1
             %rep %?args-1
-                %xdefine %?argArr %?argArr%+,%+ %[%$ %+__ %+ %?i]
+                %xdefine %?argArr %?argArr%+,%+listIndex(%?elements,%?i)
                 %assign %?i %?i+1
             %endrep
         %endif
-        %pop 
 
         %if %?args>0
             callp %?procName,%?argArr,%?outArr
