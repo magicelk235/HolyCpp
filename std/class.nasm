@@ -1,13 +1,13 @@
 ; name,size,signed
 %macro newType 2-3 0
-    %xdefine __macroName type@%[%1]
+    %xdefine __macroName %1
     %assign __%[__macroName]@class@size %2
     %assign __%[__macroName]@class@signed %3
-    %xdefine __typeName %1
+    %unimacro %[__macroName] 1-*
+    %unmacro %[__macroName] 1-*
     %macro %[__macroName] 1-*
         new %?,%{1:-1}
     %endmacro
-    %xdefine %1 __macroName
 %endmacro
 
 %assign inClass 0
