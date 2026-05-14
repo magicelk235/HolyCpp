@@ -1,4 +1,3 @@
-; reg(size,regGroup) -> reg
 %define reg(size,group) __reg@ %+ size %+ @ %+ group
 
     %define __reg@1@0 al
@@ -94,8 +93,8 @@
     %define __reg@2@24 ip
     %define __reg@4@24 eip
     %define __reg@8@24 rip
-; group(reg) -> groupID
-%define group(x) __ %+ x %+ @reg@group
+
+%define group(reg) __ %+ reg %+ @reg@group
     %define __al@reg@group 0
     %define __ah@reg@group 0
     %define __ax@reg@group 0
@@ -194,7 +193,6 @@
 ; checks if a token is a register
 %define isReg(token) %isnum(group(token))
 
-; size(reg/ref) -> size
 %define size(x) __ %+ x %+ @size
     %define __bl@size 1
     %define __bh@size 1
@@ -285,8 +283,8 @@
     %define __xmm6@size 16
     %define __xmm7@size 16
 
-; sizename(size)-> sizeInName
-%define sizename(x) __sizename@ %+ x
+
+%define sizename(size) __sizename@ %+ size
     %define __sizename@1 byte
     %define __sizename@2 word
     %define __sizename@4 dword

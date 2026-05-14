@@ -1,4 +1,4 @@
-;lsd
+; lsd(token,ignored) -> data,dataSize
 %macro lsd 2
     ; const number check
     isTokenNum %1
