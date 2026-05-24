@@ -4,7 +4,7 @@
     %if ispool(%1)
         pooldelete %1
     %endif
-    newList __%1@pool@list
+    newList __pool@list@%1
     %if %0>1
         poolset %1,%{2:-1}
     %endif
@@ -20,16 +20,16 @@
     %endrep
 %endmacro
 
-%define poollist(poolName) __%+poolName%+@pool@list
+%define poollist(poolName) merge(__pool@list@, poolName)
 %define poollen(poolName) listlen(poollist(poolName))
-%define poolin(poolName,item) %isnum(__%+poolName%+@pool@%+item)
+%define poolin(poolName,item) %isnum(merge(merge(merge(__pool@, item), @), poolName))
 %define ispool(poolName) %isnum(poollen(poolName))
 
 ; adds an element if it doesn't exist
 ; pooladd(pool,item)
 %macro pooladd 2
     %if !poolin(%1,%2)
-        %assign __%[%1]@pool@%[%2] poollen(%1)
+        %assign __pool@%[%2]@%[%1] poollen(%1)
         listpush poollist(%1),%2
     %endif
 %endmacro
@@ -38,12 +38,12 @@
 ; poolrm(pool,item)
 %macro poolrm 2
     %if poolin(%1,%2)
-        %assign %?index __%[%1]@pool@%[%2]
-        %undef __%[%1]@pool@%[%2]
+        %assign %?index __pool@%[%2]@%[%1]
+        %undef __pool@%[%2]@%[%1]
         %xdefine %?last listIndex(poollist(%1),%eval(poollen(%1)-1))
         listrm poollist(%1),%?index
         %if %?index < poollen(%1)
-            %assign __%[%1]@pool@%[%?last] %?index
+            %assign __pool@%[%?last]@%[%1] %?index
         %endif
     %endif
 %endmacro
@@ -54,7 +54,7 @@
     %if ispool(%1)
         %assign %?i 0
         %rep poollen(%1)
-            %undef __%[%1]@pool@%[listIndex(poollist(%1),%?i)]
+            %undef __pool@%[listIndex(poollist(%1),%?i)]@%[%1]
             %assign %?i %?i+1
         %endrep
         listdelete poollist(%1)

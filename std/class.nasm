@@ -1,8 +1,8 @@
 ; name,size,signed
 %macro newType 2-3 0
     %xdefine __macroName %1
-    %assign __%[__macroName]@class@size %2
-    %assign __%[__macroName]@class@signed %3
+    %assign __class@size@%[__macroName] %2
+    %assign __class@signed@%[__macroName] %3
     %unimacro %[__macroName] 1-*
     %unmacro %[__macroName] 1-*
     %macro %[__macroName] 1-*
@@ -19,16 +19,16 @@
     newType %1,0
     %xdefine %$className %1
     %define inClass 1
-    newDict __%[%$className]@class@functions
-    newDict __%[%$className]@class@reference
-    newDict __%[%$className]@class@static
+    newDict __class@functions@%[%$className]
+    newDict __class@reference@%[%$className]
+    newDict __class@static@%[%$className]
 %endmacro
 
-%define classSize(x) __%+ x %+@class@size
-%define classSigned(x) __%+ x %+ @class@signed
-%define classFunctions(x) __%+ x %+@class@functions
-%define classReference(x) __%+ x %+@class@reference
-%define classStatic(x) __%+ x %+@class@static
+%define classSize(x) merge(__class@size@, x)
+%define classSigned(x) merge(__class@signed@, x)
+%define classFunctions(x) merge(__class@functions@, x)
+%define classReference(x) merge(__class@reference@, x)
+%define classStatic(x) merge(__class@static@, x)
 %define classFunctionOffset(class,func) dictkey(classFunctions(class),func)
 %define classReferenceOffset(class,ref) dictkey(classReference(class),ref)
 %define classStaticAddr(class,ref) dictkey(classStatic(class),ref)
@@ -40,8 +40,8 @@
     listToTuple %4
     newRef %?prefixedName,0,%2,%3,__1
 
-    dictsetkey __%[%$className]@class@reference,%1,classSize(%$className)
-    %assign __%[__macroName]@class@size classSize(%$className)+totalSize(%?prefixedName)
+    dictsetkey __class@reference@%[%$className],%1,classSize(%$className)
+    %assign __class@size@%[__macroName] classSize(%$className)+totalSize(%?prefixedName)
 %endmacro
 
 ; allocstatic(name, type, depth, shape, data) - static variable (global + add to class dict)
@@ -52,8 +52,8 @@
     newRef %?prefixedName,0,%2,%3,__1
 
     allocbss totalSize(%?prefixedName)
-    %xdefine __%[%?prefixedName]@ref@addr __1
-    dictsetkey __%[%$className]@class@static,%1,__1
+    %xdefine __ref@addr@%[%?prefixedName] __1
+    dictsetkey __class@static@%[%$className],%1,__1
 %endmacro
 
 %macro endclass 0

@@ -24,7 +24,7 @@
     newRef %1,0,%2,%3,__1
 
     %assign tempRbpOffset tempRbpOffset+totalSize(%1)
-    %xdefine __%[%1]@ref@addr rbp-tempRbpOffset
+    %xdefine __ref@addr@%[%1] rbp-tempRbpOffset
 %endmacro
 
 ;rsp:
@@ -39,7 +39,7 @@
     newRef %1,0,%2,%3,__1
 
     %assign tempSpOffset tempSpOffset+totalSize(%1)
-    %xdefine __%[%1]@ref@addr rsp-tempSpOffset
+    %xdefine __ref@addr@%[%1] rsp-tempSpOffset
 %endmacro
 
 ; mixed:

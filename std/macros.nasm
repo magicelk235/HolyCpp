@@ -1,3 +1,5 @@
+%define merge(a, b) %tok(%strcat(%str(a), %str(b)))
+
 %macro parseSizeKeyword 1
     findInToken %1, "qword "
     %if __1 != -1

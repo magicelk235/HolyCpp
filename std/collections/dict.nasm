@@ -4,7 +4,7 @@
     %if isdict(%1)
         dictdelete %1
     %endif
-    newPool __%[%1]@dict@keys
+    newPool __dict@keys@%[%1]
     %if %0>1
         dictset %1,%{2:-1}
     %endif
@@ -21,28 +21,28 @@
     %endrep
 %endmacro
 
-%define dictkeyspool(dictName) __%+dictName%+@dict@keys
+%define dictkeyspool(dictName) merge(__dict@keys@, dictName)
 %define dictkeyslist(dictName) poollist(dictkeyspool(dictName))
 %define dictlen(dictName) poollen(dictkeyspool(dictName))
 %define indict(dictName,key) poolin(dictkeyspool(dictName),key)
-%define dictkey(dictName,key) __%+dictName%+@dict@%+key
-%define keyspool(dictName) __%+dictName%+@dict@keys
+%define dictkey(dictName,key) merge(merge(merge(__dict@, key), @), dictName)
+%define keyspool(dictName) merge(__dict@keys@, dictName)
 %define isdict(dictName) %isnum(dictlen(dictName))
 
 ; sets a (key,value) pair
 ; dictsetkey(dict,key,data)
 %macro dictsetkey 3
-    %xdefine __%[%1]@dict@%[%2] %3
+    %xdefine __dict@%[%2]@%[%1] %3
     %if !indict(%1,%2)
         pooladd dictkeyspool(%1),%2
-    %endif       
+    %endif
 %endmacro
 
 ; removes a (key,value) pair
 ; dictrmkey(dict,key)
 %macro dictrmkey 2
     %if indict(%1,%2)
-        %undef __%[%1]@dict@%[%2]
+        %undef __dict@%[%2]@%[%1]
         poolrm dictkeyspool(%1),%2
     %endif
 %endmacro
@@ -53,7 +53,7 @@
     %if isdict(%1)
         %assign %?i 0
         %rep dictlen(%1)
-            %undef __%[%1]@dict@%[listIndex(dictkeyslist(%1),%?i)]
+            %undef __dict@%[listIndex(dictkeyslist(%1),%?i)]@%[%1]
             %assign %?i %?i+1
         %endrep
         pooldelete dictkeyspool(%1)

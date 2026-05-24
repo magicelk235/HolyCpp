@@ -1,46 +1,65 @@
 ; makes a new ref that store size,addr,depth,type,signed,shape...
 ; newRef(name, addr, type, depth, shape...)
 %macro newRef 5-*
-    %xdefine __%1@ref@addr %2
-    %xdefine __%1@ref@type %3
-    %xdefine __%1@size classSize(%3)
-    %assign __%1@ref@depth %4
-    %assign __ref@ref@%1 1
-    %xdefine refName %1
+    %xdefine __ref@addr@%%id %2
+    %xdefine __ref@type@%%id %3
+    %assign __ref@depth@%%id %4
+    %assign __ref@ref@%%id 1
+    %xdefine __ref@name@%%id %1
+    %xdefine __ref@id@%1 %[%%id]
 
-    %assign __%1@ref@totalSize 8*(%4>0)+size(%1)*(%4<=0) ; 8 byte pointer or real size
-    newList __%1@ref@shape
+    %xdefine __ref__macro__name %1
+
+    ; 8 byte pointer or real size
+    %assign __ref@totalSize@%%id 8*(%4>0)+size(%1)*(%4<=0)
+    newList __@ref@shape@%%id
     %rotate 4
     %rep %0-4
-        %assign __%[refName]@ref@totalSize totalSize(refName)*%1
-        listpush __%[refName]@ref@shape, %1
+        %assign __ref@totalSize@%%id reftotalSize(%%id)*%1
+        listpush __@ref@shape@%%id, %1
         %rotate 1
     %endrep
 
-    %ifnmacro %[refName]
-        %macro %[refName] 1-*
+
+    %ifnmacro %[__ref__macro__name]
+        %macro %[__ref__macro__name] 1-*
             set %?%{1:-1}
         %endmacro
     %endif
 
-    %rep depth(%[refName])
-        %xdefine refName @%+refName
-        %ifnmacro %[refName]
-            %macro %[refName] 1-*
+    %rep depth(__ref__macro__name)
+        %xdefine __ref__macro__name merge(@,__ref__macro__name)
+        %ifnmacro %[__ref__macro__name]
+            %macro %[__ref__macro__name] 1-*
             set %?%{1:-1}
             %endmacro
         %endif
     %endrep
 %endmacro
 
-%define totalSize(name) __ %+ name %+ @ref@totalSize
-%define type(name) __ %+ name %+ @ref@type
-%define depth(name) __ %+ name %+ @ref@depth
-%define shape(name) __ %+ name %+ @ref@shape
-%define addr(name) __ %+ name %+ @ref@addr
-%define signed(name) %isidn(classSigned(%[type(name)]),1)
-%define isRef(x) %isnum(__ref@ref@%+x)
-%define isDirectRef(x) %isidn(__ref@ref@%+x, 1)
+%define reftotalSize(id) merge(__ref@totalSize@, id)
+%define reftype(id) merge(__ref@type@, id)
+%define refdepth(id) merge(__ref@depth@, id)
+%define refshape(id) merge(__ref@shape@, id)
+%define refaddr(id) merge(__ref@addr@,id)
+%define refsigned(id) %isidn(classSigned(merge(__ref@type@,id)),1)
+%define refisRef(id) %isnum(merge(__ref@ref@,id))
+%define refisDirectRef(id) %isidn(merge(__ref@ref@, id), 1)
+%define refsize(id) classSize(reftype(id))
+%define refname(id) merge(__ref@name@, id)
+
+%define refid(name) merge(__ref@id@, name)
+
+%define totalSize(name) reftotalSize(refid(name))
+%define type(name) reftype(refid(name))
+%define depth(name) refdepth(refid(name))
+%define shape(name) refshape(refid(name))
+%define addr(name) refaddr(refid(name))
+%define signed(name) refsigned(refid(name))
+%define isRef(name) refisRef(refid(name))
+%define isDirectRef(name) refisDirectRef(refid(name))
+
+%define size(x) %cond(isReg(x),regsize(x),refsize(refid(x)))
 
 ; search for [ at start
 ; isDirectMemory(token)
@@ -62,7 +81,7 @@
         %assign %?depth depth(%1)-%4
         %if %?depth>0
             %if isReg(%3)
-                %xdefine r reg(8,%[group(%3)])
+                %xdefine r reg(8,group(%3))
             %else
                 resr %2
             %endif
@@ -187,10 +206,10 @@
 
     %if %%validdata || %isstr(%5)
         allocdata totalSize(%1),%5
-        %xdefine __%[%1]@ref@addr __1
+        %xdefine __ref@addr@%[%1] __1
     %else
         allocbss totalSize(%1)
-        %xdefine __%[%1]@ref@addr __1
+        %xdefine __ref@addr@%[%1] __1
     %endif
 %endmacro
 
@@ -200,7 +219,7 @@
     newRef %1,0,%2,%3,__1
 
     allocrdata totalSize(%1),%5
-    %xdefine __%[%1]@ref@addr __1
+    %xdefine __ref@addr@%[%1] __1
 %endmacro
 
 ; getScope(expression)

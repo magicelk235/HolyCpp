@@ -1,4 +1,4 @@
-%define reg(size,group) __reg@ %+ size %+ @ %+ group
+%define reg(size,group) merge(merge(merge(__reg@, size), @), group)
 
     %define __reg@1@0 al
     %define __reg@2@0 ax
@@ -94,197 +94,196 @@
     %define __reg@4@24 eip
     %define __reg@8@24 rip
 
-%define group(reg) __ %+ reg %+ @reg@group
-    %define __al@reg@group 0
-    %define __ah@reg@group 0
-    %define __ax@reg@group 0
-    %define __eax@reg@group 0
-    %define __rax@reg@group 0
+%define group(reg) merge(__reg@group@, reg)
+    %define __reg@group@al 0
+    %define __reg@group@ah 0
+    %define __reg@group@ax 0
+    %define __reg@group@eax 0
+    %define __reg@group@rax 0
 
-    %define __bl@reg@group 1
-    %define __bh@reg@group 1
-    %define __bx@reg@group 1
-    %define __ebx@reg@group 1
-    %define __rbx@reg@group 1
+    %define __reg@group@bl 1
+    %define __reg@group@bh 1
+    %define __reg@group@bx 1
+    %define __reg@group@ebx 1
+    %define __reg@group@rbx 1
 
-    %define __cl@reg@group 2
-    %define __ch@reg@group 2
-    %define __cx@reg@group 2
-    %define __ecx@reg@group 2
-    %define __rcx@reg@group 2
+    %define __reg@group@cl 2
+    %define __reg@group@ch 2
+    %define __reg@group@cx 2
+    %define __reg@group@ecx 2
+    %define __reg@group@rcx 2
 
-    %define __dl@reg@group 3
-    %define __dh@reg@group 3
-    %define __dx@reg@group 3
-    %define __edx@reg@group 3
-    %define __rdx@reg@group 3
+    %define __reg@group@dl 3
+    %define __reg@group@dh 3
+    %define __reg@group@dx 3
+    %define __reg@group@edx 3
+    %define __reg@group@rdx 3
 
-    %define __rsi@reg@group 4
-    %define __esi@reg@group 4
-    %define __si@reg@group 4
-    %define __sil@reg@group 4
+    %define __reg@group@rsi 4
+    %define __reg@group@esi 4
+    %define __reg@group@si 4
+    %define __reg@group@sil 4
 
-    %define __edi@reg@group 5
-    %define __rdi@reg@group 5
-    %define __di@reg@group 5
-    %define __dil@reg@group 5
+    %define __reg@group@edi 5
+    %define __reg@group@rdi 5
+    %define __reg@group@di 5
+    %define __reg@group@dil 5
 
-    %define __r8@reg@group 6
-    %define __r8d@reg@group 6
-    %define __r8w@reg@group 6
-    %define __r8b@reg@group 6
+    %define __reg@group@r8 6
+    %define __reg@group@r8d 6
+    %define __reg@group@r8w 6
+    %define __reg@group@r8b 6
 
-    %define __r9@reg@group 7
-    %define __r9d@reg@group 7
-    %define __r9w@reg@group 7
-    %define __r9b@reg@group 7
+    %define __reg@group@r9 7
+    %define __reg@group@r9d 7
+    %define __reg@group@r9w 7
+    %define __reg@group@r9b 7
 
-    %define __r10@reg@group 8
-    %define __r10d@reg@group 8
-    %define __r10w@reg@group 8
-    %define __r10b@reg@group 8
+    %define __reg@group@r10 8
+    %define __reg@group@r10d 8
+    %define __reg@group@r10w 8
+    %define __reg@group@r10b 8
 
-    %define __r11@reg@group 9
-    %define __r11d@reg@group 9
-    %define __r11w@reg@group 9
-    %define __r11b@reg@group 9
+    %define __reg@group@r11 9
+    %define __reg@group@r11d 9
+    %define __reg@group@r11w 9
+    %define __reg@group@r11b 9
 
-    %define __r12@reg@group 10
-    %define __r12d@reg@group 10
-    %define __r12w@reg@group 10
-    %define __r12b@reg@group 10
+    %define __reg@group@r12 10
+    %define __reg@group@r12d 10
+    %define __reg@group@r12w 10
+    %define __reg@group@r12b 10
 
-    %define __r13@reg@group 11
-    %define __r13d@reg@group 11
-    %define __r13w@reg@group 11
-    %define __r13b@reg@group 11
+    %define __reg@group@r13 11
+    %define __reg@group@r13d 11
+    %define __reg@group@r13w 11
+    %define __reg@group@r13b 11
 
-    %define __r14@reg@group 12
-    %define __r14d@reg@group 12
-    %define __r14w@reg@group 12
-    %define __r14b@reg@group 12
+    %define __reg@group@r14 12
+    %define __reg@group@r14d 12
+    %define __reg@group@r14w 12
+    %define __reg@group@r14b 12
 
-    %define __r15@reg@group 13
-    %define __r15d@reg@group 13
-    %define __r15w@reg@group 13
-    %define __r15b@reg@group 13
+    %define __reg@group@r15 13
+    %define __reg@group@r15d 13
+    %define __reg@group@r15w 13
+    %define __reg@group@r15b 13
 
-    %define __xmm0@reg@group 14
-    %define __xmm1@reg@group 15
-    %define __xmm2@reg@group 16
-    %define __xmm3@reg@group 17
-    %define __xmm4@reg@group 18
-    %define __xmm5@reg@group 19
-    %define __xmm6@reg@group 20
-    %define __xmm7@reg@group 21
+    %define __reg@group@xmm0 14
+    %define __reg@group@xmm1 15
+    %define __reg@group@xmm2 16
+    %define __reg@group@xmm3 17
+    %define __reg@group@xmm4 18
+    %define __reg@group@xmm5 19
+    %define __reg@group@xmm6 20
+    %define __reg@group@xmm7 21
 
-    %define __bpl@reg@group 22
-    %define __bp@reg@group 22
-    %define __ebp@reg@group 22
-    %define __rbp@reg@group 22
+    %define __reg@group@bpl 22
+    %define __reg@group@bp 22
+    %define __reg@group@ebp 22
+    %define __reg@group@rbp 22
 
-    %define __spl@reg@group 23
-    %define __sp@reg@group 23
-    %define __esp@reg@group 23
-    %define __rsp@reg@group 23
+    %define __reg@group@spl 23
+    %define __reg@group@sp 23
+    %define __reg@group@esp 23
+    %define __reg@group@rsp 23
 
-%define isXmmReg(reg) %eval(%isidn(size(reg),16))
+%define isXmmReg(reg) %eval(isReg(reg)&&%isidn(regsize(reg),16))
 
-; checks if a token is a register
 %define isReg(token) %isnum(group(token))
 
-%define size(x) __ %+ x %+ @size
-    %define __bl@size 1
-    %define __bh@size 1
-    %define __bx@size 2
-    %define __ebx@size 4
-    %define __rbx@size 8
+%define regsize(x) merge(__reg@size@, x)
+    %define __reg@size@bl 1
+    %define __reg@size@bh 1
+    %define __reg@size@bx 2
+    %define __reg@size@ebx 4
+    %define __reg@size@rbx 8
 
-    %define __al@size 1
-    %define __ah@size 1
-    %define __ax@size 2
-    %define __eax@size 4
-    %define __rax@size 8
+    %define __reg@size@al 1
+    %define __reg@size@ah 1
+    %define __reg@size@ax 2
+    %define __reg@size@eax 4
+    %define __reg@size@rax 8
 
-    %define __cl@size 1
-    %define __ch@size 1
-    %define __cx@size 2
-    %define __ecx@size 4
-    %define __rcx@size 8
+    %define __reg@size@cl 1
+    %define __reg@size@ch 1
+    %define __reg@size@cx 2
+    %define __reg@size@ecx 4
+    %define __reg@size@rcx 8
 
-    %define __dl@size 1
-    %define __dh@size 1
-    %define __dx@size 2
-    %define __edx@size 4
-    %define __rdx@size 8
+    %define __reg@size@dl 1
+    %define __reg@size@dh 1
+    %define __reg@size@dx 2
+    %define __reg@size@edx 4
+    %define __reg@size@rdx 8
 
-    %define __sil@size 1
-    %define __dil@size 1
-    %define __si@size 2
-    %define __di@size 2
-    %define __esi@size 4
-    %define __edi@size 4
-    %define __rdi@size 8
-    %define __rsi@size 8
+    %define __reg@size@sil 1
+    %define __reg@size@dil 1
+    %define __reg@size@si 2
+    %define __reg@size@di 2
+    %define __reg@size@esi 4
+    %define __reg@size@edi 4
+    %define __reg@size@rdi 8
+    %define __reg@size@rsi 8
 
-    %define __bpl@size 1
-    %define __bp@size 2
-    %define __ebp@size 4
-    %define __rbp@size 8
+    %define __reg@size@bpl 1
+    %define __reg@size@bp 2
+    %define __reg@size@ebp 4
+    %define __reg@size@rbp 8
 
-    %define __spl@size 1
-    %define __sp@size 2
-    %define __esp@size 4
-    %define __rsp@size 8
+    %define __reg@size@spl 1
+    %define __reg@size@sp 2
+    %define __reg@size@esp 4
+    %define __reg@size@rsp 8
 
-    %define __ip@size 2
-    %define __eip@size 4
-    %define __rip@size 8
+    %define __reg@size@ip 2
+    %define __reg@size@eip 4
+    %define __reg@size@rip 8
 
-    %define __r8@size 8
-    %define __r9@size 8
-    %define __r10@size 8
-    %define __r11@size 8
-    %define __r12@size 8
-    %define __r13@size 8
-    %define __r14@size 8
-    %define __r15@size 8
-    %define __r8d@size 4
-    %define __r9d@size 4
-    %define __r10d@size 4
-    %define __r11d@size 4
-    %define __r12d@size 4
-    %define __r13d@size 4
-    %define __r14d@size 4
-    %define __r15d@size 4
-    %define __r8w@size 2
-    %define __r9w@size 2
-    %define __r10w@size 2
-    %define __r11w@size 2
-    %define __r12w@size 2
-    %define __r13w@size 2
-    %define __r14w@size 2
-    %define __r15w@size 2
-    %define __r8b@size 1
-    %define __r9b@size 1
-    %define __r10b@size 1
-    %define __r11b@size 1
-    %define __r12b@size 1
-    %define __r13b@size 1
-    %define __r14b@size 1
-    %define __r15b@size 1
+    %define __reg@size@r8 8
+    %define __reg@size@r9 8
+    %define __reg@size@r10 8
+    %define __reg@size@r11 8
+    %define __reg@size@r12 8
+    %define __reg@size@r13 8
+    %define __reg@size@r14 8
+    %define __reg@size@r15 8
+    %define __reg@size@r8d 4
+    %define __reg@size@r9d 4
+    %define __reg@size@r10d 4
+    %define __reg@size@r11d 4
+    %define __reg@size@r12d 4
+    %define __reg@size@r13d 4
+    %define __reg@size@r14d 4
+    %define __reg@size@r15d 4
+    %define __reg@size@r8w 2
+    %define __reg@size@r9w 2
+    %define __reg@size@r10w 2
+    %define __reg@size@r11w 2
+    %define __reg@size@r12w 2
+    %define __reg@size@r13w 2
+    %define __reg@size@r14w 2
+    %define __reg@size@r15w 2
+    %define __reg@size@r8b 1
+    %define __reg@size@r9b 1
+    %define __reg@size@r10b 1
+    %define __reg@size@r11b 1
+    %define __reg@size@r12b 1
+    %define __reg@size@r13b 1
+    %define __reg@size@r14b 1
+    %define __reg@size@r15b 1
 
-    %define __xmm0@size 16
-    %define __xmm1@size 16
-    %define __xmm2@size 16
-    %define __xmm3@size 16
-    %define __xmm4@size 16
-    %define __xmm5@size 16
-    %define __xmm6@size 16
-    %define __xmm7@size 16
+    %define __reg@size@xmm0 16
+    %define __reg@size@xmm1 16
+    %define __reg@size@xmm2 16
+    %define __reg@size@xmm3 16
+    %define __reg@size@xmm4 16
+    %define __reg@size@xmm5 16
+    %define __reg@size@xmm6 16
+    %define __reg@size@xmm7 16
 
 
-%define sizename(size) __sizename@ %+ size
+%define sizename(size) merge(__sizename@, size)
     %define __sizename@1 byte
     %define __sizename@2 word
     %define __sizename@4 dword

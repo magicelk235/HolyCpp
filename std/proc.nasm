@@ -4,9 +4,9 @@
     newRef %1,0,%2,%3,__1
 
     sub rsp,totalSize(%1)
-    %assign __locals_%[procName] locals(procName)+totalSize(%1)
+    %assign __proc@locals@%[procName] locals(procName)+totalSize(%1)
     %assign %?offset heldSize(procName)+locals(procName)
-    %xdefine __%[%1]@ref@addr rbp-%?offset
+    %xdefine __ref@addr@%[%1] rbp-%?offset
 %endmacro
 
 ; allocarg(name, type, depth, shape, data)
@@ -14,8 +14,8 @@
     listToTuple %4
     newRef %1,0,%2,%3,__1
 
-    %assign __args_%[procName] %eval(args(procName)+__macro_align8(totalSize(%1)))
-    %xdefine __%[%1]@ref@addr rbp+%eval(args(procName)+8)
+    %assign __proc@args@%[procName] %eval(args(procName)+__macro_align8(totalSize(%1)))
+    %xdefine __ref@addr@%[%1] rbp+%eval(args(procName)+8)
 %endmacro
 
 ; gloabl push
@@ -76,27 +76,27 @@
 
 ; name,out
 %macro newProc 2
-    %xdefine __addr_%1 __proc_%1
-    %assign __outs_%1 %2*8
-    %assign __args_%1 0
-    %assign __heldSize_%1 0
-    %define __held_%1 -1
-    %assign __locals_%1 0
-    %assign __procClean_%1 0
+    %xdefine __proc@addr@%1 __proc_%1
+    %assign __proc@outs@%1 %2*8
+    %assign __proc@args@%1 0
+    %assign __proc@heldSize@%1 0
+    %define __proc@held@%1 -1
+    %assign __proc@locals@%1 0
+    %assign __proc@clean@%1 0
 %endmacro
 
-%define locals(x) __locals_ %+ x
-%define args(x) __args_ %+ x
-%define outs(x) __outs_%+ x
-%define heldSize(x) __heldSize_ %+ x
-%define held(x) __held_ %+ x
-%define procClean(x) __procClean_ %+ x
+%define locals(x) merge(__proc@locals@, x)
+%define args(x) merge(__proc@args@, x)
+%define outs(x) merge(__proc@outs@, x)
+%define heldSize(x) merge(__proc@heldSize@, x)
+%define held(x) merge(__proc@held@, x)
+%define procClean(x) merge(__proc@clean@, x)
 %define isProc(x) %isnum(locals(x))
 
 %macro hold 1-*
     sumSize %{1:-1}
-    %assign __heldSize_%[procName] __1
-    %xdefine __held_%[procName] %{1:-1}
+    %assign __proc@heldSize@%[procName] __1
+    %xdefine __proc@held@%[procName] %{1:-1}
     push %{1:-1}
 %endmacro
 
@@ -110,8 +110,8 @@
     %endmacro
 
     %define %$blockType "proc"
-    global __proc_%+procName
-    __proc_%+procName:
+    global merge(__proc_, procName)
+    merge(__proc_, procName):
     %assign forceMov 1
     push rbp
     mov rbp,rsp
@@ -212,7 +212,7 @@
     %if heldSize(procName)
         pop held(procName)
     %endif
-    %assign __procClean_%[procName] __macro_max(args(procName) - outs(procName),0)
+    %assign __proc@clean@%[procName] __macro_max(args(procName) - outs(procName),0)
     pop rbp
     ret procClean(procName)
     %pop

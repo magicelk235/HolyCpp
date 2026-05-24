@@ -200,7 +200,7 @@
         new %?argType, arg %?argName
     %endif
 
-    %assign __procClean_%[%?name] __macro_max(args(%?name) - outs(%?name),0)
+    %assign __proc@clean@%[%?name] __macro_max(args(%?name) - outs(%?name),0)
 %endmacro
 
 %macro end 0

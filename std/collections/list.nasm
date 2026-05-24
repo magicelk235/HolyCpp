@@ -4,7 +4,7 @@
     %if islist(%1)
         listdelete %1
     %endif
-    %assign __%1@list@len %0-1
+    %assign __list@len@%1 %0-1
     %if %0>1
         listset %{1:-1}
     %endif
@@ -22,17 +22,17 @@
     %endrep
 %endmacro
 
-%define listlen(listName) __%+listName%+@list@%+len
-%define listIndex(listName,i) __%+listName%+@list@%+i
+%define listlen(listName) merge(__list@len@, listName)
+%define listIndex(listName,i) merge(merge(merge(__list@, i), @), listName)
 %define islist(listName) %isnum(listlen(listName))
 %define listpeek(listName) listIndex(listName,listIndex)
 
 ; sets element at index
 ; listsetindex(list,index,data)
 %macro listsetindex 3
-    %xdefine __%1@list@%2 %3
+    %xdefine __list@%2@%1 %3
     %if %2>=listlen(%1)
-        %assign __%1@list@len %2+1
+        %assign __list@len@%1 %2+1
     %endif
 %endmacro
 
@@ -65,7 +65,7 @@
     %rep listlen(%1)-%?i-1
         listsetindex %1,%?i,listIndex(%1,%eval(%?i+1))
     %endrep
-    %assign __%[%1]@list@len listlen(%1)-1
+    %assign __list@len@%[%1] listlen(%1)-1
 %endmacro
 
 ; removes element at index no shift
@@ -73,9 +73,10 @@
 %macro listrm 2
     %assign %?i %2
     %assign %?lastidx listlen(%1)-1
-    %assign __%[%1]@list@len %?lastidx
+    %assign __list@len@%[%1] %?lastidx
     listsetindex %1,%?i,listIndex(%1,%?lastidx)
-    %undef __%[%1]@list@%[%?lastidx]
+    %undef __list@%[%?lastidx]@%[%1]
+    %assign __list@len@%[%1] %?lastidx
 %endmacro
 
 ; prints list elements as warnings
@@ -94,7 +95,7 @@
     %assign %?i 1
     %xdefine __1 listIndex(%1,0)
     %rep %eval(listlen(%1)-1)
-        %xdefine __1 __1%+,%+listIndex(%1,%?i)
+        %xdefine __1 merge(merge(__1, ,), listIndex(%1,%?i))
         %assign %?i %?i+1
     %endrep
 %endmacro
@@ -105,9 +106,9 @@
     %if islist(%1)
         %assign %?i 1
         %rep listlen(%1)
-            %undef __%[%1]@list@%[%?i]
+            %undef __list@%[%?i]@%[%1]
         %endrep
-        %undef __%[%1]@list@len
+        %undef __list@len@%[%1]
     %endif
 %endmacro
 
