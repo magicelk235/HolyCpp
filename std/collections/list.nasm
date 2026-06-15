@@ -95,7 +95,7 @@
     %assign %?i 1
     %xdefine __1 listIndex(%1,0)
     %rep %eval(listlen(%1)-1)
-        %xdefine __1 merge(merge(__1, ,), listIndex(%1,%?i))
+        %xdefine __1 __1%+,%+listIndex(%1,%?i)
         %assign %?i %?i+1
     %endrep
 %endmacro

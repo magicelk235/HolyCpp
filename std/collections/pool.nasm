@@ -78,3 +78,14 @@
     poolcopy %1,%%copy
     retm %%copy
 %endmacro
+
+; converts pool to a tuple
+; pooltotuple(pool) -> tuple
+%macro pooltotuple 1
+    %assign %?i 1
+    %xdefine __1 listIndex(poollist(%1),0)
+    %rep %eval(poollen(%1)-1)
+        %xdefine __1 __1%+,%+listIndex(poollist(%1),%?i)
+        %assign %?i %?i+1
+    %endrep
+%endmacro
