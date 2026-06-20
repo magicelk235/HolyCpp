@@ -1,5 +1,7 @@
 %define merge(a, b) %tok(%strcat(%str(a), %str(b)))
 
+; strip size keyword prefix and return its byte count
+; parseSizeKeyword(token) -> size, token
 %macro parseSizeKeyword 1
     findInToken %1, "qword "
     %if __1 != -1
@@ -28,43 +30,8 @@
     retm 0, %1
 %endmacro
 
-;defines a reg that isnt used as r
-;eg: resr(s:4,rax,rbx)->ecx
-;resr(?size-1,used-regs-1-*)
-%macro resr 0-*
-    %assign %?group 0
-    %define %?foundReg 0
-    %define %?sizeUsed 0
-    
-    findInToken %1,s:
-    %if __1 != -1
-        subToken %1,__1+2,-1
-        %define %?size __1
-        %define %?sizeUsed 1
-    %else
-        %define %?size 8
-    %endif
-
-    %rep group(r15)+1
-        %rotate %?sizeUsed
-        %define %?foundReg 1
-        %rep %0-%?sizeUsed
-            %if isReg(%1)
-                %if group(%1) = %?group
-                    %define %?foundReg 0
-                %endif
-            %endif
-            %rotate 1
-        %endrep
-
-        %if %?foundReg == 1
-           %define r reg(%?size,%?group)
-           %exitrep
-        %endif
-        %assign %?group %?group+1
-    %endrep
-%endmacro
-
+; resolve path, handle <lib> syntax, guard against re-include
+; getPath(path) -> resolved path or -1
 %rmacro getPath 1
     %xdefine %?path %str(%1)
     %ifidn %substr(%?path,1,1),"<"
@@ -110,6 +77,8 @@
     %endif
 %endmacro
 
+; guarded include, handles <lib> prefix and .hcpp extension
+; include(path)
 %rmacro include 1
     getPath %1
     %ifnidn __1,-1
@@ -117,6 +86,7 @@
     %endif
 %endmacro
 
+; isStringOpen(token) -> isOpen, type(0=single, 1=double)
 %macro isStringOpen 1
     toStr %1
     %xdefine %?token __1
@@ -129,6 +99,7 @@
     %endif
 %endmacro
 
+; isString(token) -> bool
 %macro isString 1
     %defstr %?str %1
     %substr %?sub %?str 1
@@ -148,6 +119,7 @@
 %define isPow2(x) (((x)&((x)-1))==0)
 %define isStringDigit(x) %eval(x>='0' && x<='9')
 
+; isNumber(token) -> bool
 %macro isNumber 1
     toStr %1
     %xdefine %?str __1
@@ -207,7 +179,7 @@
     %endrep
 %endmacro
 
- ; char, currentMode, currentType
+; updateStringMode(char, currentMode, currentType) -> newMode, newType
 %macro updateStringMode 3
     isStringOpen %1
     %if __1
@@ -328,6 +300,7 @@
     %endif
 %endmacro
 
+; subString(token, start, ?stop) -> substring (string, not token)
 %macro subString 2-3
     toStr %1
     %xdefine %?str __1
@@ -373,7 +346,8 @@
     retm %?count
 %endmacro
 
-;str 
+; parse string, expand escape sequences into byte list
+; parseStr(string) -> charList
 %macro parseStr 1
     newList %?str
     %strlen %?len %1
@@ -430,6 +404,8 @@
     retm %?str
 %endmacro
 
+; rejoin comma-split tokens that span bracket pairs
+; joinBracketSplit(toks...) -> list
 %macro joinBracketSplit 1-*
     newList %?items
     %assign %?stackcount 0
@@ -456,7 +432,7 @@
     retm %?items
 %endmacro
 
-; splitToken(token, spliter) -> splited tokens
+; splitToken(token, splitter) -> list of tokens
 %macro splitToken 2
     toStr %1
     %xdefine %?token __1
@@ -482,7 +458,7 @@
     retm %[%?parts]
 %endmacro
 
-; subToken(token,start,stop?)->subtoken
+; subToken(token, start, ?stop) -> subtoken
 %macro subToken 2-3
     subString %{1:-1}
     %xdefine %?str __1
@@ -723,5 +699,6 @@
     %endrep
 %endmacro
 
+; compile-time max/min
 %define __macro_max(x,y) %eval((x>=y)*(x)+(x<y)*(y))
 %define __macro_min(x,y) %eval( (x>=y)*(y)+(x<y)*(x))
