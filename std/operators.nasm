@@ -1,6 +1,5 @@
-; getInputType(tok1, tok2, ...)
-; Returns type in __1: int, unint, float
-; Refs override const-derived types, but not other ref types
+; resolve common type from inputs, refs override const-derived types
+; getInputType(tok1, tok2, ...) -> type (int, unint, float)
 %macro getInputType 1-*
     %xdefine %?type int
 
@@ -18,6 +17,8 @@
     retm %?type
 %endmacro
 
+; dispatch binary op to __int.op / __float.op / __unint.op
+; useOperator2(op, src1, src2, dest)
 %macro useOperator2 4
     getInputType %{2:-1}
     %xdefine %?type __1
@@ -28,6 +29,8 @@
     %endif
 %endmacro
 
+; dispatch unary op to type-specific impl
+; useOperator1(op, src, dest)
 %macro useOperator1 3
     getInputType %2
     %xdefine %?type __1

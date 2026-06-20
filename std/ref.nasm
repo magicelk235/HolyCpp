@@ -20,13 +20,14 @@
         %rotate 1
     %endrep
 
-
+    ; create set macro
     %ifnmacro %[__ref__macro__name]
         %macro %[__ref__macro__name] 1-*
             set %?%{1:-1}
         %endmacro
     %endif
 
+    ; create pointer set macro
     %rep depth(__ref__macro__name)
         %xdefine __ref__macro__name merge(@,__ref__macro__name)
         %ifnmacro %[__ref__macro__name]

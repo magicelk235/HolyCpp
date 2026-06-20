@@ -1,4 +1,5 @@
-; name,size,signed
+; register primitive type with size and signedness
+; newType(name, size, ?signed)
 %macro newType 2-3 0
     %xdefine __macroName %1
     %assign __class@size@%[__macroName] %2
@@ -12,6 +13,8 @@
 
 %assign inClass 0
 
+; begin class definition block
+; class(name)
 %macro class 1
     %assign inClass 1
     %push
@@ -56,6 +59,8 @@
     dictsetkey __class@static@%[%$className],%1,__1
 %endmacro
 
+; end class definition
+; endclass
 %macro endclass 0
     %assign inClass 0
 %endmacro

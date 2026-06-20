@@ -1,3 +1,5 @@
+; strip array index suffix from token, return base ref name
+; removeIndex(token) -> ref
 %macro removeIndex 1
     findInToken %1,[
     %if __1!=-1
@@ -25,6 +27,7 @@
     retm %?ref,%[__1]
 %endmacro
 
+; if ref has array shape (first dim > 1) and is a pointer
 %define listPointer(ref) %eval(listIndex(shape(ref),0)>1&&depth(ref)>0)
 
 ; generate instructions to calculate the offset of the index at a given index and returns the pointer and the array ref
@@ -104,8 +107,10 @@
     %endif
 %endmacro
 
+; 1 if token is a ref with an index suffix (ref[i])
 %define isTokenIndex(x) isRef(x)&&!isDirectRef(x)
 
+; isTokenArray(token) -> bool (contains ":")
 %macro isTokenArray 1
     findInToken %1,:
     retm %eval(__1!=-1)
@@ -121,6 +126,8 @@
 
 
 
+; count elements in array literal [a:b:c]
+; countElements(arrayLiteral) -> count
 %macro countElements 1
     %assign %?count 1
     %assign %?stack 0
@@ -160,6 +167,8 @@
     retm %?count
 %endmacro
 
+; get first element from array literal
+; getArrayFirstElement(arrayLiteral) -> element
 %macro getArrayFirstElement 1
     %assign %?stack 0
 
@@ -199,6 +208,8 @@
     retm %?element
 %endmacro
 
+; extract shape list from nested array literal
+; getArrayShape(arrayLiteral) -> shapeList
 %macro getArrayShape 1
     toStr %1
     %xdefine %?array __1

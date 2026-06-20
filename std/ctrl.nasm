@@ -1,7 +1,9 @@
+; setBlockType(type)
 %macro setBlockType 1
     %xdefine %$blockType %1
 %endmacro
 
+; if(expression)
 %macro if 1-*
     %xdefine %?expression %1
     %rotate 1
@@ -20,12 +22,14 @@
     je %$next%[%$blockCount]
 %endmacro
 
+; else
 %macro else 0
     jmp %$end
     %$next%[%$blockCount]:
     %assign %$blockCount %$blockCount+1
 %endmacro
 
+; elif(expression)
 %macro elif 1-*
     else
     %xdefine %?expression %1
@@ -42,6 +46,7 @@
     je %$next%[%$blockCount]
 %endmacro 
 
+; endif
 %macro endif 0
     %$next%[%$blockCount]:
     jmp %$end
@@ -49,14 +54,19 @@
     %pop
 %endmacro
 
+; jump to end of enclosing block
+; break
 %macro break 0
     jmp %$end
 %endmacro
 
+; jump to check of enclosing loop
+; continue
 %macro continue 0
     jmp %$check
 %endmacro
 
+; while(expression)
 %macro while 1-*
     %xdefine %?expression %1
     %rotate 1
@@ -76,10 +86,12 @@
     je %$end
 %endmacro
 
+; endwhile
 %macro endwhile 0
     jmp %$check
 %endmacro
 
+; for(init, condition, step)
 %macro for 1-*
     %assign %?stackcount 0
     %assign %?current 0
@@ -116,11 +128,13 @@
     je %$end
 %endmacro
 
+; endfor
 %macro endfor 0
     %$instruction
     jmp %$check
 %endmacro
 
+; dowhile(expression)
 %macro dowhile 1-*
     %xdefine %?expression %1
     %rotate 1
@@ -135,6 +149,7 @@
     %$check:
 %endmacro
 
+; enddowhile
 %macro enddowhile 0
     eval %$expression
     mov r15,__1
@@ -142,10 +157,8 @@
     cmp r15,false
     jne %$check
 %endmacro
-;func(arg)>111
-;func()>1
-;func(arg1, arg2, arg3)
-
+; declare proc with typed args and optional return count
+; func(name(type arg, ...) > ?outs)
 %macro func 1-*
     %rotate -1
     findInToken %1,>
@@ -203,6 +216,8 @@
     %assign __proc@clean@%[%?name] __macro_max(args(%?name) - outs(%?name),0)
 %endmacro
 
+; close current block, dispatches to endproc/endif/endwhile/endfor/enddowhile
+; end
 %macro end 0
     end%+%tok(%$blockType)
 %endmacro

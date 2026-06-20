@@ -1,5 +1,5 @@
-;rbp:
-
+; push rbp temp frame (extends locals inside proc, creates new frame outside)
+; startTempBp
 %macro startTempBp 0
     %if inProc
         %assign tempRbpOffset locals(procName)+heldSize(procName)
@@ -11,6 +11,8 @@
     sub rsp,allocateTempBp
 %endmacro
 
+; tear down rbp temp frame
+; endTempBp
 %macro endTempBp 0
     add rsp,allocateTempBp
     %if !inProc
@@ -27,8 +29,8 @@
     %xdefine __ref@addr@%[%1] rbp-tempRbpOffset
 %endmacro
 
-;rsp:
-
+; reset rsp-relative temp offset
+; startTempSp
 %macro startTempSp 0
     %assign tempSpOffset 0
 %endmacro
@@ -104,6 +106,7 @@
     %endif
 %endmacro
 
+; isSymbol(token) -> bool (operator or ":")
 %macro isSymbol 1
     toStr %1
     %xdefine %?token __1
@@ -117,7 +120,7 @@
     %endif
 %endmacro
 
-; checks if a token has operator
+; hasOperator(expression) -> bool
 %macro hasOperator 1
     %xdefine %?str %str(%1)
 
@@ -284,6 +287,8 @@
     %endrep
 %endmacro
 
+; count total out slots from all embedded proc calls
+; countProcCallsOuts(expression) -> count
 %macro countProcCallsOuts 1
     %assign %?count 0
     %define %?expression %str(%1)
@@ -436,7 +441,8 @@
     retm %?leftOperand,%?expression,%?start
 %endmacro
 
-; returns the amount of operators and proc calls outs
+; count operators and proc call outs in expression
+; countOperators(expression) -> count
 %macro countOperators 1
     toStr %1
     %xdefine %?str __1
@@ -577,8 +583,8 @@
     retm %?expression
 %endmacro
 
-; x-3*(x-4),(,),1
-; expression,openChar,closeChar -> oldExpression,evaledExpression
+; find innermost group, return original (with delimiters) and inner content
+; searchGroup(expression, open, close) -> original, inner
 %macro searchGroup 3
     %define %?token %1
     %rep 100000
@@ -624,6 +630,8 @@
     %endrep
 %endmacro
 
+; replace embedded proc calls with temp vars, emit call code
+; evalProc(expression) -> expression
 %macro evalProc 1
     %xdefine %?expression %1
     %assign %?outs 0
@@ -699,6 +707,8 @@
 
 %assign stringCount 0
 
+; replace string literals with const refs, emit data
+; evalString(expression) -> expression
 %macro evalString 1
     %define %?expression %str(%1)
     %rep 100000
@@ -744,7 +754,8 @@
     %endrep
     retm %tok(%?expression)
 %endmacro
-; expr,forceTempType,forceeval
+; compile expression, emit instructions, return result var name
+; eval(expression, ?tempType, ?forceEval) -> resultVar
 %macro eval 1-3
     %assign %?forceEval 0
     %if %0==3
@@ -916,6 +927,8 @@
     retm %?expression
 %endmacro
 
+; clean up temp frame after eval
+; endEval
 %macro endEval 0
     %if didStartTemp
         endTemp tempType
