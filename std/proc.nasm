@@ -69,11 +69,6 @@
 
 %define inProc 0
 
-%define @ext r8,r9,r10,r11,r12,r13,r14,r15
-%define @general rax,rbx,rcx,rdx,rsi,rdi 
-%define @float xmm1,xmm2,xmm3,xmm4,xmm5,xmm6,xmm7
-%define @all @general,@ext,@float
-
 ; name,out
 %macro newProc 2
     %xdefine __proc@addr@%1 __proc_%1
