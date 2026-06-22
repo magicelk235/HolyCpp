@@ -23,16 +23,21 @@
 %endmacro
 
 %define listlen(listName) merge(__list@len@, listName)
-%define listIndex(listName,i) merge(merge(merge(__list@, i), @), listName)
+%define listIndex(listName,i) %cond(i>=0,merge(merge(merge(__list@, i), @), listName),merge(merge(merge(__list@, %eval(listlen(listName)+i)), @), listName))
 %define islist(listName) %isnum(listlen(listName))
 %define listpeek(listName) listIndex(listName,listIndex)
 
 ; sets element at index
 ; listsetindex(list,index,data)
 %macro listsetindex 3
-    %xdefine __list@%2@%1 %3
-    %if %2>=listlen(%1)
-        %assign __list@len@%1 %2+1
+    %if %2>=0
+        %xdefine __list@%2@%1 %3
+        %if %2>=listlen(%1)
+            %assign __list@len@%1 %2+1
+        %endif
+    %else
+        %assign %?index listlen(%1)+%2
+        %xdefine __list@%[%?index]@%1 %3
     %endif
 %endmacro
 

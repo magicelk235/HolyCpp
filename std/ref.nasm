@@ -8,10 +8,10 @@
     %xdefine __ref@name@%%id %1
     %xdefine __ref@id@%1 %[%%id]
 
-    %xdefine __ref__macro__name %1
+    %xdefine __ref@macroname %1
 
     ; 8 byte pointer or real size
-    %assign __ref@totalSize@%%id 8*(%4>0)+size(%1)*(%4<=0)
+    %assign __ref@totalSize@%%id %cond(%4>0,8,size(%1))
     newList __@ref@shape@%%id
     %rotate 4
     %rep %0-4
@@ -21,17 +21,17 @@
     %endrep
 
     ; create set macro
-    %ifnmacro %[__ref__macro__name]
-        %macro %[__ref__macro__name] 1-*
+    %ifnmacro %[__ref@macroname]
+        %macro %[__ref@macroname] 1-*
             set %?%{1:-1}
         %endmacro
     %endif
 
     ; create pointer set macro
-    %rep depth(__ref__macro__name)
-        %xdefine __ref__macro__name merge(@,__ref__macro__name)
-        %ifnmacro %[__ref__macro__name]
-            %macro %[__ref__macro__name] 1-*
+    %rep depth(__ref@macroname)
+        %xdefine __ref@macroname merge(@,__ref@macroname)
+        %ifnmacro %[__ref@macroname]
+            %macro %[__ref@macroname] 1-*
             set %?%{1:-1}
             %endmacro
         %endif
