@@ -233,6 +233,12 @@
     %endif
 %endmacro
 
+; findInToken(MainToken,searchedToken)->bool
+%macro inToken 2
+    findInToken %1, %2
+    retm %eval(__1!=-1)
+%endmacro
+
 ; subString(token, start, ?stop) -> substring (string, not token)
 %macro subString 2-3
     toStr %1
