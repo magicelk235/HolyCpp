@@ -49,8 +49,8 @@
 %endmacro
 
 ; removes and returns last element
-; listpop(list,dest) -> last element
-%macro listpop 2
+; listpop(list) -> last element
+%macro listpop 1
     %assign %?index listlen(%1)-1
     retm listIndex(%1,%?index)
     listrm %1,%?index
