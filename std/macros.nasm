@@ -1,5 +1,19 @@
 %define merge(a, b) %tok(%strcat(%str(a), %str(b)))
 
+; makes a macro recursive by a given macro name and its macro that defines it
+; makeRecursive(name,definer)
+%macro makeRecursive 2
+    %macro %[%1 %+ Copy] 0-2 %1, %2
+        %macro %1 0-*
+            %[%?? %+ Copy]
+            %?? %{1:-1}
+        %endmacro
+        %2
+    %endmacro
+    %[%1 %+ Copy]
+%endmacro
+
+
 ; strip size keyword prefix and return its byte count
 ; parseSizeKeyword(token) -> size, tokenWithoutPrefix
 %macro parseSizeKeyword 1
@@ -30,45 +44,25 @@
     retm 0, %1
 %endmacro
 
-; resolve path, handle <lib> syntax, guard against re-include
+%macro defgetPath 0
+; resolve path handle <lib> syntax
 ; getPath(path) -> resolved path or -1
-%rmacro getPath 1
+%macro getPath 1
     %xdefine %?path %str(%1)
     %ifidn %substr(%?path,1,1),"<"
         %xdefine %?path %strcat("lib/",%substr(%?path,2,%strlen(%?path)-2))
     %endif
 
-    %strlen %?pathlen %?path
-    %assign %?hasDot 0
-    %assign %?j 1
-    %rep %?pathlen
-        %substr %?sub %?path %?j,1
-        %ifidni %?sub,"."
-            %assign %?hasDot 1
-            %exitrep
-        %endif
-        %assign %?j %?j+1
-    %endrep
-
-    %if !%?hasDot
+    inToken %?path,"."
+    %if !__1
         %xdefine %?path %strcat(%?path,".hcpp")
         %strlen %?pathlen %?path
     %endif
 
-    %xdefine %?pathtok ""
-    %assign %?i 1
-    %rep %?pathlen
-        %substr %?sub %?path %?i,1
-        %ifidni %?sub,"."
-            %xdefine %?pathtok %strcat(%?pathtok,"__")
-        %elifidn %?sub,"/"
-            %xdefine %?pathtok %strcat(%?pathtok,"_")
-        %else
-            %xdefine %?pathtok %strcat(%?pathtok,%?sub)
-        %endif
-        %assign %?i %?i+1
-    %endrep
-    %deftok %?pathtok %?pathtok
+    replaceToken %tok(%?path),.,__
+    replaceToken __1,/,_
+    %xdefine %?pathtok __1
+
     %ifnidn __included_%+%?pathtok,1
         %xdefine __included_%[%?pathtok] 1
         retm %?path
@@ -76,15 +70,21 @@
         retm -1
     %endif
 %endmacro
+%endmacro
+makeRecursive getPath, defgetPath
 
+%macro definclude 0
 ; guarded include, handles <lib> prefix and .hcpp extension
 ; include(path)
-%rmacro include 1
+%macro include 1
     getPath %1
     %ifnidn __1,-1
         %include __1
     %endif
 %endmacro
+%endmacro
+
+makeRecursive include, definclude
 
 ; isStringOpen(token) -> type(0=notStringOpen,1=single, 2=double)
 %macro isStringOpen 1
