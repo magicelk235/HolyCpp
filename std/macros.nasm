@@ -1,5 +1,22 @@
 %define merge(a, b) %tok(%strcat(%str(a), %str(b)))
 
+; compile-time max/min
+%define __macro_max(x,y) %eval((x>=y)*(x)+(x<y)*(y))
+%define __macro_min(x,y) %eval( (x>=y)*(y)+(x<y)*(x))
+
+%define isPow2(x) (((x)&((x)-1))==0)
+%define isStringDigit(x) %eval(x>='0' && x<='9')
+
+%define emptyToken @E@
+%define isEmpty(token) (%isidn(token,emptyToken)||%isidn(token,"")||%isidn(token,%str(emptyToken)))
+
+; check if a number fits in a given byte size
+; isNumInSize(num,size)
+%define isNumInSize(num,size) %eval(-(1<<(size*8-1)) <= (num) && (num) <= (1<<(size*8-1))-1)
+
+; gets the minimun number of bytes to store a const number
+%define numSize(x) %eval(1 + !isNumInSize(x,1) + !isNumInSize(x,2)*2 + !isNumInSize(x,4)*4)
+
 ; makes a macro recursive by a given macro name and its macro that defines it
 ; makeRecursive(name,definer)
 %macro makeRecursive 2
@@ -56,7 +73,6 @@
     inToken %?path,"."
     %if !__1
         %xdefine %?path %strcat(%?path,".hcpp")
-        %strlen %?pathlen %?path
     %endif
 
     replaceToken %tok(%?path),.,__
@@ -116,8 +132,7 @@ makeRecursive include, definclude
     retm 1
 %endmacro
 
-%define isPow2(x) (((x)&((x)-1))==0)
-%define isStringDigit(x) %eval(x>='0' && x<='9')
+
 
 ; isNumber(token) -> bool
 %macro isNumber 1
@@ -202,7 +217,7 @@ makeRecursive include, definclude
     %strlen %?lenMain %?mainStr
     %strlen %?lenSearched %?searchedStr
     %assign %?loopTimes (%?lenMain-%?lenSearched)+1
-
+    
     %if %?loopTimes<=0
         retm -1
         %exitmacro
@@ -223,7 +238,7 @@ makeRecursive include, definclude
         %substr %?sub %?str1 %?i,1
         updateStringType %?sub,%?stringType
         %assign %?stringType __1
-            %assign %?i %?i+1
+        %assign %?i %?i+1
     %endrep
 
     %if %?found
@@ -281,8 +296,8 @@ makeRecursive include, definclude
         %if !%?stringType
             %substr %?sub %?mainStr %?i,%?lenSearched
             %ifidni %?sub,%?searchedStr
-            %assign %?count %?count+1
-        %endif
+                %assign %?count %?count+1
+            %endif
         %endif
         %substr %?sub %?mainStr %?i,1
         updateStringType %?sub, %?stringType
@@ -417,8 +432,6 @@ makeRecursive include, definclude
     %endif
 %endmacro
 
-%define emptyToken @@EMPTY@@
-%define isEmpty(token) (%isidn(token,emptyToken)||%isidn(token,"")||%isidn(token,"@@EMPTY@@"))
 %macro isTokenFloat 1
     toStr %1
     %xdefine %?str __1
@@ -458,7 +471,6 @@ makeRecursive include, definclude
 %macro numType 1
     isTokenFloat %1
 %endmacro
-%define numSize(x) %eval((1 + ((x < -(1<<7)) || (x > (1<<7)-1)) * 1 + ((x < -(1<<15)) || (x > (1<<15)-1)) * 2 + ((x < -(1<<31)) || (x > (1<<31)-1)) * 4))
 
 %macro tokenLen 1
     toStr %1
@@ -510,10 +522,6 @@ makeRecursive include, definclude
         retm %1,0
     %endif
 %endmacro
-
-; check if a number is in a current byte size
-; isNumInSize(num,size)
-%define isNumInSize(num,size) %eval(-((2<<(size*8-2))-1) <= num && num <= (2<<(size*8-2))-1 ? 1 : 0)
 
 ; clearSpaces(token)->token without spaces
 %macro clearSpaces 1
@@ -641,7 +649,3 @@ makeRecursive include, definclude
     retm -1,-1
     %endrep
 %endmacro
-
-; compile-time max/min
-%define __macro_max(x,y) %eval((x>=y)*(x)+(x<y)*(y))
-%define __macro_min(x,y) %eval( (x>=y)*(y)+(x<y)*(x))
