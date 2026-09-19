@@ -299,11 +299,11 @@
     %endif
 %endmacro
 
-
 %define inMov 0
 %assign forceMov 0
 
-;original mov(dest,src)
+;original mov
+;omov(dest,src)
 %macro omov 2
     %if inMov
         mov %1,%2
@@ -311,7 +311,6 @@
         mov %1,%2,0
     %endif
 %endmacro
-
 
 ; mov(dest,src)
 %macro mov 2-3
@@ -396,7 +395,7 @@
     
     %define inMov 0
 %endmacro
-
+; sizeByToken(any)
 %macro sizeByToken 1
     ; register
     %if isReg(%1)
@@ -420,6 +419,7 @@
     %endif
 %endmacro
 
+; totalSizeByToken(any)
 %macro totalSizeByToken 1
     ; register
     %if isReg(%1)

@@ -127,24 +127,17 @@
 
     %strlen %?len %?str
     %assign %?i 1
-    %assign %?stringMode 0
     %assign %?stringType 0
     %assign %?stringLen 0
 
     %rep %?len
         %substr %?sub %?str %?i,1
-        isStringOpen %?sub
-        %if __1
-            %if %?stringMode
-                %assign %?stringMode (%?stringType!=__2)
-                %assign %?stringLen (%?stringType!=__2)*(%?stringLen)
-            %else
-                %assign %?stringMode 1
-                %assign %?stringType __2
-                %assign %?stringLen 0
-            %endif
+        updateStringType %?sub,%?stringType
+        %if __1!=%?stringType ; entering/leaving a string
+            %assign %?stringLen 0
         %endif
-        %if %?stringMode
+        %assign %?stringType __1
+        %if %?stringType
             %assign %?stringLen %?stringLen+1
             %if %?stringLen>4
                 retm 1
@@ -170,7 +163,6 @@
     toStr %2
     %xdefine %?str2 __1
 
-    %assign %?stringMode 0
     %assign %?stringType 0
 
     ; !!!name -> 2, !name -> 0
@@ -186,16 +178,9 @@
     %endif
     %rep %?loopTimes
         %substr %?sub %?str1 %?i,%?lenStr2
-        isStringOpen %?sub
-        %if __1
-            %if %?stringMode
-                %assign %?stringMode (%?stringType!=__2)
-            %else
-                %assign %?stringMode 1
-                %assign %?stringType __2
-            %endif
-        %endif
-        %if !%?stringMode
+        updateStringType %?sub,%?stringType
+        %assign %?stringType __1
+        %if !%?stringType
             %ifidni %?sub,%?str2
                 ; checks if after the operator theres an operand and not operator
                 %substr %?after %?str1 %?i+%?lenStr2,1
@@ -239,7 +224,6 @@
     toStr %2
     %xdefine %?str2 __1
 
-    %assign %?stringMode 0
     %assign %?stringType 0
 
     %strlen %?lenStr1 %?str1
@@ -253,16 +237,9 @@
 
     %rep %?loopTimes
         %substr %?sub %?str1 %?i,%?lenStr2
-        isStringOpen %?sub
-        %if __1
-            %if %?stringMode
-                %assign %?stringMode (%?stringType!=__2)
-            %else
-                %assign %?stringMode 1
-                %assign %?stringType __2
-            %endif
-        %endif
-        %if !%?stringMode
+        updateStringType %?sub,%?stringType
+        %assign %?stringType __1
+        %if !%?stringType
             %ifidni %?sub,%?str2
                 %if %?i!=1
                     %substr %?before %?str1 %?i-1,1
@@ -346,7 +323,6 @@
     tokenLen %1
     %assign %?max __1
 
-    %assign %?stringMode 0
     %assign %?stringType 0
 
     %assign %?i %2+%?size+1
@@ -357,16 +333,9 @@
         %xdefine %?beforeRightOperand __1
         %assign %?isOperandConstNeg isStringDigit(%?beforeRightOperand)&&%isidn(%?rightOperand,"-")&&(%?i==%2+%?size+1)
 
-        isStringOpen %?rightOperand
-        %if __1
-            %if %?stringMode
-                %assign %?stringMode (%?stringType!=__2)
-            %else
-                %assign %?stringMode 1
-                %assign %?stringType __2
-            %endif
-        %endif
-        %if !%?stringMode
+        updateStringType %?rightOperand,%?stringType
+        %assign %?stringType __1
+        %if !%?stringType
             isSymbol %?rightOperand
             %if __1&&!%?isOperandConstNeg
                 %assign %?stop %?i-1
@@ -391,7 +360,6 @@
 ; getLOperand(token,operatorIndex,operatorSize)-> leftOperand,expression,start
 %macro getLOperand 3
 
-    %assign %?stringMode 0
     %assign %?stringType 0
     %assign %?min 0
     %assign %?i %2-1
@@ -406,16 +374,9 @@
         %else
             %assign %?isOperandConstNeg 0
         %endif
-        isStringOpen %?leftOperand
-        %if __1
-            %if %?stringMode
-                %assign %?stringMode (%?stringType!=__2)
-            %else
-                %assign %?stringMode 1
-                %assign %?stringType __2
-            %endif
-        %endif
-        %if !%?stringMode
+        updateStringType %?leftOperand,%?stringType
+        %assign %?stringType __1
+        %if !%?stringType
             isSymbol %?leftOperand
             %if %?isOperandConstNeg
                 %assign %?start %?i-1
@@ -449,23 +410,15 @@
     %assign %?count 0
     %strlen %?len %?str
 
-    %assign %?stringMode 0
     %assign %?stringType 0
 
     %assign %?i 1
     %rep %?len
         %substr %?sub %?str %?i,1
-        isStringOpen %?sub
-        %if __1
-            %if %?stringMode
-                %assign %?stringMode (%?stringType!=__2)
-            %else
-                %assign %?stringMode 1
-                %assign %?stringType __2
-                %assign %?count %?count+%isidn(%?sub,'"')
-            %endif
-        %endif
-        %if !%?stringMode
+        updateStringType %?sub,%?stringType
+        %assign %?count %?count+(!%?stringType&&__1==2) ; opening a double-quoted string
+        %assign %?stringType __1
+        %if !%?stringType
             isOperator %?sub
             %if __1
                 %assign %?count %?count+1
@@ -715,28 +668,22 @@
         %assign %?startIndex -1
         %assign %?stopIndex -1
         %assign %?found 0
-        %assign %?stringMode 0
         %assign %?stringType 0
         %xdefine %?strExpression %?expression
         %strlen %?len %?strExpression
         %assign %?i 1
         %rep %?len
             %substr %?sub %?strExpression %?i,1
-            isStringOpen %?sub
-            %ifidn %?sub,'"'
-                %if %?stringMode
-                    %if (%?stringType==__2)
-                        %assign %?startIndex %?startIndex-1
-                        %assign %?stopIndex %?i
-                        %assign %?found 1
-                        %exitrep
-                    %endif
-                %else
-                    %assign %?startIndex %?i
-                    %assign %?stringMode 1
-                    %assign %?stringType __2
-                %endif
-                %endif
+            updateStringType %?sub,%?stringType
+            %if __1==2&&!%?stringType ; opening double-quoted string
+                %assign %?startIndex %?i
+            %elif !__1&&%?stringType==2 ; closing it
+                %assign %?startIndex %?startIndex-1
+                %assign %?stopIndex %?i
+                %assign %?found 1
+                %exitrep
+            %endif
+            %assign %?stringType __1
             %assign %?i %?i+1
         %endrep
 

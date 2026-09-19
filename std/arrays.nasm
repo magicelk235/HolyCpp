@@ -132,7 +132,6 @@
     %assign %?count 1
     %assign %?stack 0
 
-    %assign %?stringMode 0
     %assign %?stringType 0
 
     toStr %1
@@ -143,10 +142,9 @@
 
     %rep %strlen(%?array)
         %substr %?sub %?array %?i,1
-        updateStringMode %?sub,%?stringMode,%?stringType
-        %assign %?stringMode __1
-        %assign %?stringType __2
-        %if !%?stringMode
+        updateStringType %?sub,%?stringType
+        %assign %?stringType __1
+        %if !%?stringType
             %ifidn %?sub,"["
                 %assign %?stack %?stack+1
             %elifidn %?sub,"]"
@@ -172,7 +170,6 @@
 %macro getArrayFirstElement 1
     %assign %?stack 0
 
-    %assign %?stringMode 0
     %assign %?stringType 0
 
     toStr %1
@@ -183,10 +180,9 @@
 
     %rep %strlen(%?array)
         %substr %?sub %?array %?i,1
-        updateStringMode %?sub,%?stringMode,%?stringType
-        %assign %?stringMode __1
-        %assign %?stringType __2
-        %if !%?stringMode
+        updateStringType %?sub,%?stringType
+        %assign %?stringType __1
+        %if !%?stringType
             %ifidn %?sub,"["
                 %assign %?stack %?stack+1
             %elifidn %?sub,"]"
@@ -217,14 +213,12 @@
     ; gets the dim of the array
     %assign %?dim 0
     %assign %?i 1
-    %assign %?stringMode 0
     %assign %?stringType 0
     %rep 100000
         %substr %?sub %?array %?i,1
-        updateStringMode %?sub,%?stringMode,%?stringType
-        %assign %?stringMode __1
-        %assign %?stringType __2
-        %if !%?stringMode
+        updateStringType %?sub,%?stringType
+        %assign %?stringType __1
+        %if !%?stringType
             %ifidn %?sub,"["
                 %assign %?dim %?dim+1
             %elif %?sub,"]"

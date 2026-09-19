@@ -1,7 +1,7 @@
 %define merge(a, b) %tok(%strcat(%str(a), %str(b)))
 
 ; strip size keyword prefix and return its byte count
-; parseSizeKeyword(token) -> size, token
+; parseSizeKeyword(token) -> size, tokenWithoutPrefix
 %macro parseSizeKeyword 1
     findInToken %1, "qword "
     %if __1 != -1
@@ -86,16 +86,16 @@
     %endif
 %endmacro
 
-; isStringOpen(token) -> isOpen, type(0=single, 1=double)
+; isStringOpen(token) -> type(0=notStringOpen,1=single, 2=double)
 %macro isStringOpen 1
     toStr %1
     %xdefine %?token __1
     %ifidn %?token,"'"
-        retm 1,0
+        retm 1
     %elifidn %?token,'"'
-        retm 1,1
+        retm 2
     %else
-        retm 0,0
+        retm 0
     %endif
 %endmacro
 
@@ -131,9 +131,9 @@
             retm 0
             %exitrep
         %endif
-        retm 1
         %assign %?i %?i+1
     %endrep
+    retm 1
 %endmacro
 
 ; toStr(token)
@@ -147,11 +147,12 @@
     %endif
 %endmacro
 
-; isPtr(token)
+; isPtr(token) -> bool,ptrDepth
 %macro isPtr 1
     tokenCount %1,@
     retm __1>0,__1
 %endmacro
+
 ; returns values from a macro to __1 ... __N
 ; __0 = count
 ; retm(outs)
@@ -179,124 +180,56 @@
     %endrep
 %endmacro
 
-; updateStringMode(char, currentMode, currentType) -> newMode, newType
-%macro updateStringMode 3
+; updateStringType(char, currentType) -> newType(0=off,1=single,2=double)
+%macro updateStringType 2
     isStringOpen %1
-    %if __1
-        %if %2
-            retm (%3!=__2),%3
-        %else
-            retm 1,__2
-        %endif
+    %if !__1
+        retm %2
+    %elif %2 ; inside a string
+        retm %cond(%2==__1,0,%2)
     %else
-        retm %2,%3
+        retm __1
     %endif
 %endmacro
 
-; findInToken(token1,token2)->index
+; findInToken(mainToken,searchedToken)->index
 %macro findInToken 2
-    %defstr %?defStr1 %1
-    %strlen %?defLen1 %?defStr1
-    %assign %?isStr1 0
+    toStr %1
+    %xdefine %?mainStr __1
+    toStr %2
+    %xdefine %?searchedStr __1
 
-    %if %?defLen1 >= 2
-        %substr %?firstCh %?defStr1 1
-        %substr %?lastCh %?defStr1 %?defLen1
-        %ifidni %?firstCh,"'"
-            %ifidni %?lastCh,"'"
-                %assign %?isStr1 1
-            %endif
-        %endif
-        %if !%?isStr1
-            %ifidni %?firstCh,'"'
-                %ifidni %?lastCh,'"'
-                    %assign %?isStr1 1
-                %endif
-            %endif
-        %endif
-    %endif
-
-    %if %?isStr1
-        %xdefine %?str1 %1
-    %else
-        %xdefine %?str1 %?defStr1
-    %endif
-
-    %defstr %?defStr2 %2
-    %strlen %?defLen2 %?defStr2
-    %assign %?isStr2 0
-    %if %?defLen2 >= 2
-        %substr %?firstCh %?defStr2 1
-        %substr %?lastCh %?defStr2 %?defLen2
-        %ifidni %?firstCh,"'"
-            %ifidni %?lastCh,"'"
-                %assign %?isStr2 1
-            %endif
-        %endif
-        %if !%?isStr2
-            %ifidni %?firstCh,'"'
-                %ifidni %?lastCh,'"'
-                    %assign %?isStr2 1
-                %endif
-            %endif
-        %endif
-    %endif
-    %if %?isStr2
-        %xdefine %?str2 %2
-    %else
-        %xdefine %?str2 %?defStr2
-    %endif
-
-    %assign %?stringMode 0
-    %assign %?stringType 0
-
-    %strlen %?lenStr1 %?str1
-    %strlen %?lenStr2 %?str2
-    %assign %?i 1
-    %assign %?loopTimes (%?lenStr1-%?lenStr2)+1
+    %strlen %?lenMain %?mainStr
+    %strlen %?lenSearched %?searchedStr
+    %assign %?loopTimes (%?lenMain-%?lenSearched)+1
 
     %if %?loopTimes<=0
-        %xdefine __1 -1
-        %xdefine __0 1
+        retm -1
         %exitmacro
     %endif
 
+    %assign %?stringType 0
+    %assign %?i 1
     %assign %?found 0
     %rep %?loopTimes
-        %if !%?stringMode && !%?found
-            %substr %?sub %?str1 %?i,%?lenStr2
-            %ifidni %?sub,%?str2
-                %xdefine __1 %eval(%?i-1)
-                %xdefine __0 1
+        %if !%?stringType
+            %substr %?sub %?mainStr %?i,%?lenSearched
+            %ifidni %?sub,%?searchedStr
                 %assign %?found 1
+                %exitrep
             %endif
         %endif
-        %if !%?found
-            %substr %?ch %?str1 %?i,1
-            %ifidni %?ch,"'"
-                %if %?stringMode
-                    %assign %?stringMode (%?stringType!=0)
-                %else
-                    %assign %?stringMode 1
-                    %assign %?stringType 0
-                %endif
-            %else
-            %ifidni %?ch,'"'
-                %if %?stringMode
-                    %assign %?stringMode (%?stringType!=1)
-                %else
-                    %assign %?stringMode 1
-                    %assign %?stringType 1
-                %endif
-            %endif
-            %endif
+
+        %substr %?sub %?str1 %?i,1
+        updateStringType %?sub,%?stringType
+        %assign %?stringType __1
             %assign %?i %?i+1
-        %endif
     %endrep
 
-    %if !%?found
-        %xdefine __1 -1
-        %xdefine __0 1
+    %if %?found
+        retm %eval(%?i-1)
+    %else
+        retm -1
     %endif
 %endmacro
 
@@ -318,29 +251,36 @@
     retm %?str
 %endmacro
 
-; tokenCount(token1,token2)->count
+; tokenCount(mainToken,searchedToken)->count
 %macro tokenCount 2
-    toStr %1
-    %xdefine %?str1 __1
-    toStr %2
-    %xdefine %?str2 __1
+    %assign %?stringType 0
 
-    %strlen %?lenStr1 %?str1
-    %strlen %?lenStr2 %?str2
-    %define %?sub ''
+    toStr %1
+    %xdefine %?mainStr __1
+    toStr %2
+    %xdefine %?searchedStr __1
+
+    %strlen %?lenMain %?mainStr
+    %strlen %?lenSearched %?searchedStr
     %assign %?i 1
     %assign %?count 0
-    %assign %?loopTimes (%?lenStr1-%?lenStr2)+1
+    %assign %?loopTimes (%?lenMain-%?lenSearched)+1
+    
     %if %?loopTimes<=0
         retm 0
         %exitmacro
     %endif
 
     %rep %?loopTimes
-        %substr %?sub %?str1 %?i,%?lenStr2
-        %ifidni %?sub,%?str2
+        %if !%?stringType
+            %substr %?sub %?mainStr %?i,%?lenSearched
+            %ifidni %?sub,%?searchedStr
             %assign %?count %?count+1
         %endif
+        %endif
+        %substr %?sub %?mainStr %?i,1
+        updateStringType %?sub, %?stringType
+        %assign %?stringType __1
         %assign %?i %?i+1
     %endrep
     retm %?count
@@ -581,15 +521,13 @@
     %assign %?i 1
     %assign %?count 0
 
-    %assign %?stringMode 0
     %assign %?stringType 0
 
     %rep %?len
         %substr %?sub %?str %?i,1
-        updateStringMode %?sub, %?stringMode, %?stringType
-        %assign %?stringMode __1
-        %assign %?stringType __2
-        %if !%isidni(%?sub," ")||%?stringMode
+        updateStringType %?sub,%?stringType
+        %assign %?stringType __1
+        %if !%isidni(%?sub," ")||%?stringType
             %xdefine %?new %strcat(%?new,%?sub)
         %endif
         %assign %?i %?i+1
@@ -609,8 +547,8 @@
     %assign %?size __1
     toStr %3
     %xdefine %?new __1
-
-    %xdefine %?newString %str(%1)
+    toStr %1
+    %xdefine %?newString __1
     %rep %?replaceTimes
         findInToken %?newString,%2
         %if __1 == -1
@@ -644,22 +582,20 @@
     retm %?size
 %endmacro
 
-; findPare(mainToken,start,stop)
+; findPare(mainToken,startToken,stopToken) -> startIndex,stopIndex
 %macro findPare 3
-    findInToken %1,%2
-
-    %assign %?stringMode 0
     %assign %?stringType 0
 
+    ; finds the startToken
+    findInToken %1,%2
     %xdefine %?startIndex __1
 
-    retm -1,-1
     %if %?startIndex == -1
+        retm -1,-1
         %exitmacro
     %endif
     %assign %?count 1
 
-    %xdefine %?endIndex -1
 
     toStr %1
     %xdefine %?mainStr __1
@@ -667,23 +603,23 @@
     %xdefine %?startStr __1
     toStr %3
     %xdefine %?endStr __1
-    
     %strlen %?mainLen %?mainStr
-    %strlen %?pareLen %?startStr
+
+    ; skips the startToken and switches to 1-based index
     %assign %?i %?startIndex+2
 
-    %assign %?loopTimes (%?mainLen-%?pareLen-%?startIndex)+1
+    
+    %assign %?loopTimes %?mainLen-%?startIndex
     %if %?loopTimes<=0
         retm -1,-1
         %exitmacro
     %endif
 
     %rep %?loopTimes
-        %substr %?sub %?mainStr %?i,%?pareLen
-        updateStringMode %?sub, %?stringMode, %?stringType
-        %assign %?stringMode __1
-        %assign %?stringType __2
-        %if !%?stringMode
+        %substr %?sub %?mainStr %?i,1
+        updateStringType %?sub,%?stringType
+        %assign %?stringType __1
+        %if !%?stringType
             %ifidni %?sub,%?endStr
                 %assign %?count %?count-1
             %elifidni %?sub,%?startStr
@@ -696,6 +632,7 @@
             %endif
         %endif
         %assign %?i %?i+1
+    retm -1,-1
     %endrep
 %endmacro
 
